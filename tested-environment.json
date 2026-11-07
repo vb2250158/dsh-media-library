@@ -1,0 +1,7 @@
+{
+  "runtime": "Windows x64 source Web",
+  "dsh": "0.2.2-rc.1",
+  "node": "24.15.0",
+  "pnpm": "11.28.5",
+  "scope": "Current declared maintenance Host only; fixture and actual-page evidence are recorded separately"
+}

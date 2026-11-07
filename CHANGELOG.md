@@ -1,0 +1,8 @@
+# Changelog
+
+## 0.1.0
+
+- Designate existing Workspace projects through their context menu and open a project media panel without entering another path.
+- Browse bounded directory pages, play media through authenticated byte-range reads, and persist tags separately from original files.
+- Preserve project conversations, media and labels when removing a designation; clean up streams and UI registrations on unload.
+- Keep filesystem boundaries, owner authentication, persistence failures and directory changes covered by focused regressions.
