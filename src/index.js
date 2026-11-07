@@ -12,5 +12,5 @@ export function apply(ctx) {
   const lifetime = new AbortController()
   const library = new MediaLibrary({ workspaceRegistry: ctx.workspaceRegistry, stateDir: join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'state', 'media-library') })
   ctx.effect(() => () => { lifetime.abort(); return library.dispose() })
-  ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: '/media-library/', handler: createHandler({ connection: ctx.connection, library, signal: lifetime.signal, logger: ctx.logger }) }))
+  ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: '/media-library', handler: createHandler({ connection: ctx.connection, library, signal: lifetime.signal, logger: ctx.logger }) }))
 }
