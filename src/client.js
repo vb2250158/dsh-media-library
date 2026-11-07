@@ -12,7 +12,7 @@ window.__ModuleLoader__.load({
       tags: '标签', tagHelp: '用逗号分隔标签', saveTags: '保存标签', saving: '正在保存…', saved: '标签已保存', close: '关闭预览', previewFailed: '浏览器无法播放或显示此媒体，可换用支持的媒体格式',
       requestFailed: '读取未完成，请重试', changed: '目录已变化，请刷新后继续', unavailable: '此项目已移出媒体库，请返回项目列表', invalidTags: '最多填写 100 个标签，每个标签不超过 100 个字符',
       fileGone: '媒体文件已不存在，请刷新目录', denied: '无法访问该目录或文件', failedSave: '标签保存未确认，请刷新后核对', browse: '浏览', bytes: '字节', removed: '媒体库登记已取消，原文件和标签保留',
-      allVideos: '全部视频', uncategorized: '未分类', all: '全部', category: '标签分类', newCategory: '新增分类', newTag: '新增标签', categoryName: '分类名称', tagName: '标签名称', add: '添加', scanning: '正在扫描视频…', noVideos: '没有找到视频', noCover: '暂无封面', duplicate: '分类或标签名称已存在',
+      allVideos: '全部视频', uncategorized: '未分类', all: '全部', category: '标签分类', newCategory: '新增分类', newTag: '新增标签', categoryName: '分类名称', tagName: '标签名称', add: '添加', scanning: '正在扫描视频…', noVideos: '没有找到视频', noCover: '暂无封面', duplicate: '分类或标签名称已存在', sort: '排序', sortUpdated: '更新时间（新到旧）', sortName: '名称（A 到 Z）', sortSize: '文件大小（大到小）',
     }
     const en = {
       title: 'Media library', set: 'Use as media library', open: 'Open media library', remove: 'Remove media library designation', menuFailed: 'The media library action did not complete. Retry.',
@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
       tags: 'Tags', tagHelp: 'Separate tags with commas', saveTags: 'Save tags', saving: 'Saving…', saved: 'Tags saved', close: 'Close preview', previewFailed: 'This browser cannot play or display this media. Use a supported format.',
       requestFailed: 'Could not read this item. Retry.', changed: 'The directory changed. Refresh before continuing.', unavailable: 'This project is no longer a media library. Return to the project list.', invalidTags: 'Use up to 100 tags, each no longer than 100 characters.',
       fileGone: 'This media file no longer exists. Refresh the directory.', denied: 'This directory or file cannot be accessed.', failedSave: 'The tag save is unconfirmed. Refresh to check.', browse: 'Browse', bytes: 'bytes', removed: 'The designation was removed. Files and tags are retained.',
-      allVideos: 'All videos', uncategorized: 'Uncategorized', all: 'All', category: 'Tag categories', newCategory: 'New category', newTag: 'New tag', categoryName: 'Category name', tagName: 'Tag name', add: 'Add', scanning: 'Scanning videos…', noVideos: 'No videos found', noCover: 'No cover', duplicate: 'The category or tag name already exists.',
+      allVideos: 'All videos', uncategorized: 'Uncategorized', all: 'All', category: 'Tag categories', newCategory: 'New category', newTag: 'New tag', categoryName: 'Category name', tagName: 'Tag name', add: 'Add', scanning: 'Scanning videos…', noVideos: 'No videos found', noCover: 'No cover', duplicate: 'The category or tag name already exists.', sort: 'Sort', sortUpdated: 'Recently updated', sortName: 'Name (A to Z)', sortSize: 'Size (largest first)',
     }
 
     /** Read one owner-authenticated endpoint; caller owns request cancellation. */
@@ -186,6 +186,7 @@ window.__ModuleLoader__.load({
     function VideoGrid({ project, t }) {
       const [videos, setVideos] = React.useState([]), [categories, setCategories] = React.useState([])
       const [filter, setFilter] = React.useState(''), [selected, setSelected] = React.useState(null)
+      const [sort, setSort] = React.useState('updated')
       const [categoryName, setCategoryName] = React.useState(''), [tagName, setTagName] = React.useState(''), [categoryId, setCategoryId] = React.useState('')
       const [loading, setLoading] = React.useState(true), [error, setError] = React.useState(''), [revision, setRevision] = React.useState(0), [visible, setVisible] = React.useState(60)
       React.useEffect(() => {
@@ -216,9 +217,15 @@ window.__ModuleLoader__.load({
       const refreshCategories = async () => setCategories(await request('categories'))
       const createCategory = async () => { try { await request('categories/create', { body: { name: categoryName } }); setCategoryName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
       const createTag = async () => { try { await request('categories/tags/add', { body: { categoryId, name: tagName } }); setTagName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
-      const matching = videos.filter(video => !filter || (filter === '__untagged__' ? !video.tags?.length : video.tags?.includes(filter.slice(4))))
+      const matching = videos.filter(video => !filter || (filter === '__untagged__' ? !video.tags?.length : video.tags?.includes(filter.slice(4)))).sort((a, b) => {
+        const name = a.name.localeCompare(b.name, undefined, { numeric: true }) || a.path.localeCompare(b.path)
+        if (sort === 'name') return name
+        if (sort === 'size') return (b.size ?? 0) - (a.size ?? 0) || name
+        return (Date.parse(b.modified) || 0) - (Date.parse(a.modified) || 0) || name
+      })
       return h('div', { className: 'dsh-media-grid-view' },
         h('div', { className: 'dsh-media-heading' }, h('h2', null, project.title), h(Button, { variant: 'outline', onClick: () => setRevision(value => value + 1) }, t('refresh'))),
+        h('label', { className: 'dsh-media-sort' }, t('sort'), ' ', h('select', { value: sort, 'aria-label': t('sort'), onChange: event => { setSort(event.target.value); setVisible(60) } }, h('option', { value: 'updated' }, t('sortUpdated')), h('option', { value: 'name' }, t('sortName')), h('option', { value: 'size' }, t('sortSize')))),
         h('div', { className: 'dsh-media-filters', 'aria-label': t('category') },
           h(Button, { variant: filter === '' ? 'primary' : 'ghost', onClick: () => setFilter('') }, t('all')),
           h(Button, { variant: filter === '__untagged__' ? 'primary' : 'ghost', onClick: () => setFilter('__untagged__') }, t('uncategorized')),

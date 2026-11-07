@@ -26,7 +26,7 @@ const fetch = async (path, init = {}) => {
   const url = new URL(path, 'http://localhost'), body = init.body ? JSON.parse(init.body) : null
   if (url.pathname.endsWith('/state')) return response({ projects: [{ workspaceId: 'a', title: '测试媒体库' }] })
   if (url.pathname.endsWith('/categories')) return response(categories)
-  if (url.pathname.endsWith('/directory')) return response({ items: url.searchParams.get('path') ? [{ path: 'nested/demo.mp4', name: 'demo.mp4', kind: 'video', tags: tags.get('nested/demo.mp4') ?? [] }] : [{ path: 'nested', name: 'nested', kind: 'directory' }], hasMore: false, nextOffset: 1, version: 'v1' })
+  if (url.pathname.endsWith('/directory')) return response({ items: url.searchParams.get('path') ? [{ path: 'nested/demo.mp4', name: 'demo.mp4', kind: 'video', size: 9, modified: '2024-01-01', tags: tags.get('nested/demo.mp4') ?? [] }, { path: 'nested/z.mp4', name: 'z.mp4', kind: 'video', size: 2, modified: '2025-01-01', tags: [] }] : [{ path: 'nested', name: 'nested', kind: 'directory' }], hasMore: false, nextOffset: 1, version: 'v1' })
   if (url.pathname.endsWith('/tags')) { tags.set(body.path, body.tags); return response({ tags: body.tags }) }
   throw new Error(`Unexpected request ${path}`)
 }
@@ -40,6 +40,10 @@ const root = createRoot(document.getElementById('app'))
 await act(async () => { root.render(h(slot.component, slot.spec.inject('session-a'))) })
 assert(document.body.textContent.includes('demo.mp4'), 'nested video appears in grid')
 assert(document.body.textContent.includes('未分类'))
+assert(document.querySelector('.dsh-media-card').textContent.includes('z.mp4'), 'recent video appears first')
+const sort = document.querySelector('select[aria-label="排序"]')
+await act(async () => { sort.value = 'size'; sort.dispatchEvent(new dom.window.Event('change', { bubbles: true })) })
+assert(document.querySelector('.dsh-media-card').textContent.includes('demo.mp4'), 'largest video appears first')
 await act(async () => document.querySelector('.dsh-media-card').click())
 const checks = [...document.querySelectorAll('input[type=checkbox]')]
 assert.equal(checks.length, 2)

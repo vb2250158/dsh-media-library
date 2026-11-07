@@ -2,7 +2,7 @@
 
 Browse, play and tag media in an existing DSH project. Right-click the project and choose **Use as media library**. Its Workspace directory is the only media root; no second path or restart is needed to designate it. Right-click again to open it or remove its designation. Removing a designation retains media files, tags and conversations.
 
-Select a session in a designated project to open its media library next to chat. The video grid scans subdirectories through paged requests. Select a video for native browser playback; codec support belongs to the browser and no transcoding is provided. Create tag categories and tags, assign multiple tags in the preview, or ask the Agent to append tags. Untagged videos appear under Uncategorized.
+Select a session in a designated project to open its media library next to chat. The video grid scans subdirectories through paged requests and can be sorted by modification time, name or file size. Select a video for native browser playback; codec support belongs to the browser and no transcoding is provided. Create tag categories and tags, assign multiple tags in the preview, or ask the Agent to append tags. Untagged videos appear under Uncategorized.
 
 Workspace owns project identity, title and path. Designations, tag categories and tags are stored under the actual DSH Home's `state/media-library/`. These are local business data, excluded from portable environment synchronization. Original files are never moved, copied, deleted or edited. No directory is enabled automatically. Directory changes invalidate further paging until refresh.
 
