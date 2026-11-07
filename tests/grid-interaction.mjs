@@ -17,8 +17,9 @@ const components = { Button: ({ variant, children, ...props }) => h('button', pr
 let descriptor, menu, dictionary, panel, opened = 0
 const entries = new Map(), tags = new Map(), listeners = new Set()
 const categories = [{ id: 'cat', name: '类型', tags: ['动画', '冒险'] }]
-const workspaces = { list: { getSnapshot: () => snapshot, subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener) } } }
+const workspaces = { list: { snapshot: null, getSnapshot() { return this.snapshot }, subscribe(listener) { assert.equal(this.snapshot, snapshot); listeners.add(listener); return () => listeners.delete(listener) } } }
 const snapshot = { items: [{ workspaceId: 'a', sessionIds: ['session-a', 'session-b'] }] }
+workspaces.list.snapshot = snapshot
 const sidebar = { mounted: { getSnapshot: () => 'session-a' }, openTab: () => { opened++ } }
 const response = data => ({ ok: true, json: async () => ({ ok: true, data }) })
 const fetch = async (path, init = {}) => {

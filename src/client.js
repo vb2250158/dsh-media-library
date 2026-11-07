@@ -262,7 +262,7 @@ window.__ModuleLoader__.load({
     }
 
     function SessionMedia({ sessionId, workspaces, sidebar, selectedSubscribe, selectedSnapshot }) {
-      const snapshot = React.useSyncExternalStore(workspaces.list.subscribe, workspaces.list.getSnapshot, workspaces.list.getSnapshot)
+      const snapshot = React.useSyncExternalStore(listener => workspaces.list.subscribe(listener), () => workspaces.list.getSnapshot(), () => workspaces.list.getSnapshot())
       const selection = React.useSyncExternalStore(selectedSubscribe, selectedSnapshot, selectedSnapshot)
       const workspaceId = snapshot.items.find(item => item.sessionIds.includes(sessionId))?.workspaceId
       React.useEffect(() => {
@@ -284,7 +284,7 @@ window.__ModuleLoader__.load({
     }
 
     function SessionLibrary({ sessionId, workspaces, t }) {
-      const snapshot = React.useSyncExternalStore(workspaces.list.subscribe, workspaces.list.getSnapshot, workspaces.list.getSnapshot)
+      const snapshot = React.useSyncExternalStore(listener => workspaces.list.subscribe(listener), () => workspaces.list.getSnapshot(), () => workspaces.list.getSnapshot())
       const workspaceId = snapshot.items.find(item => item.sessionIds.includes(sessionId))?.workspaceId
       const [projects, setProjects] = React.useState([])
       const [error, setError] = React.useState('')
