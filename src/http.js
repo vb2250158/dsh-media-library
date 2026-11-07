@@ -2,7 +2,7 @@
 import { pipeline } from 'node:stream/promises'
 
 const BASE = '/media-library/'
-const allowedErrors = new Set(['MEDIA_INVALID_REQUEST', 'MEDIA_INVALID_PATH', 'MEDIA_INVALID_PAGE', 'MEDIA_INVALID_ROOT', 'MEDIA_OUTSIDE_ROOT', 'MEDIA_LINK_REFUSED', 'MEDIA_UNSUPPORTED_TYPE', 'MEDIA_NOT_FILE', 'MEDIA_NOT_DIRECTORY', 'MEDIA_FILE_CHANGED', 'MEDIA_NOT_FOUND', 'MEDIA_NOT_READABLE', 'MEDIA_READ_FAILED', 'MEDIA_INVALID_TAGS', 'MEDIA_CATEGORY_EXISTS', 'MEDIA_CATEGORY_MISSING', 'MEDIA_TAG_EXISTS', 'MEDIA_WORKSPACE_MISSING', 'MEDIA_NOT_ENABLED', 'MEDIA_DIRECTORY_MISSING', 'MEDIA_DIRECTORY_CHANGED', 'MEDIA_DIRECTORY_LIMIT', 'MEDIA_UNLOADING'])
+const allowedErrors = new Set(['MEDIA_INVALID_REQUEST', 'MEDIA_INVALID_INDEX', 'MEDIA_INDEX_LIMIT', 'MEDIA_CATALOG_LIMIT', 'MEDIA_INVALID_PATH', 'MEDIA_INVALID_PAGE', 'MEDIA_INVALID_ROOT', 'MEDIA_OUTSIDE_ROOT', 'MEDIA_LINK_REFUSED', 'MEDIA_UNSUPPORTED_TYPE', 'MEDIA_NOT_FILE', 'MEDIA_NOT_DIRECTORY', 'MEDIA_FILE_CHANGED', 'MEDIA_NOT_FOUND', 'MEDIA_NOT_READABLE', 'MEDIA_READ_FAILED', 'MEDIA_INVALID_TAGS', 'MEDIA_CATEGORY_EXISTS', 'MEDIA_CATEGORY_MISSING', 'MEDIA_TAG_EXISTS', 'MEDIA_WORKSPACE_MISSING', 'MEDIA_SOURCE_MISSING', 'MEDIA_NOT_ENABLED', 'MEDIA_DIRECTORY_MISSING', 'MEDIA_DIRECTORY_CHANGED', 'MEDIA_DIRECTORY_LIMIT', 'MEDIA_UNLOADING'])
 
 /** Parse a single byte range. Invalid or unsatisfiable ranges return null. */
 export function byteRange(value, size) {
@@ -28,10 +28,12 @@ function json(response, status, value) {
   response.end(JSON.stringify(value))
 }
 
-async function bodyOf(request) {
+async function bodyOf(request, limit = 16_384, limitCode = 'MEDIA_INVALID_REQUEST') {
   if (request.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/json') throw Object.assign(new Error('content-type'), { code: 'MEDIA_INVALID_REQUEST' })
+  const contentLength = Number(request.headers['content-length'])
+  if (Number.isFinite(contentLength) && contentLength > limit) { request.resume(); throw Object.assign(new Error('body-size'), { code: limitCode }) }
   let bytes = 0; const chunks = []
-  for await (const chunk of request) { bytes += chunk.length; if (bytes > 16_384) throw Object.assign(new Error('body-size'), { code: 'MEDIA_INVALID_REQUEST' }); chunks.push(chunk) }
+  for await (const chunk of request) { bytes += chunk.length; if (bytes > limit) throw Object.assign(new Error('body-size'), { code: limitCode }); chunks.push(chunk) }
   const body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw Object.assign(new Error('body'), { code: 'MEDIA_INVALID_REQUEST' })
   return body
@@ -49,7 +51,7 @@ export function createHandler({ connection, library, signal, logger }) {
     if (admission.peer.principal.kind !== 'owner') { response.writeHead(403); response.end(); return }
     const url = new URL(request.url, 'http://localhost')
     const action = url.pathname.slice(BASE.length)
-    const write = ['projects/set', 'tags', 'tags/add', 'categories/create', 'categories/tags/add'].includes(action)
+    const write = ['projects/set', 'tags', 'tags/add', 'folders/add', 'folders/remove', 'index/replace', 'categories/create', 'categories/tags/add'].includes(action)
     if (write && request.method !== 'POST' || !write && !['GET', 'HEAD'].includes(request.method)) { response.writeHead(405); response.end(); return }
     // Same-origin browsers send Origin on JSON POSTs. Refuse missing/foreign origins for writes.
     if (write) {
@@ -60,7 +62,7 @@ export function createHandler({ connection, library, signal, logger }) {
     let file
     try {
       if (action === 'file') {
-        file = await library.open(url.searchParams.get('workspaceId'), url.searchParams.get('path'))
+        file = await library.open(url.searchParams.get('workspaceId'), url.searchParams.get('sourceId'), url.searchParams.get('path'))
         const range = byteRange(request.headers.range, file.stat.size)
         if (!range) { response.writeHead(416, { 'content-range': `bytes */${file.stat.size}`, 'cache-control': 'no-store' }); response.end(); return }
         const headers = { 'content-type': file.mimeType, 'content-length': range.end - range.start + 1, 'accept-ranges': 'bytes', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox", 'content-disposition': "inline; filename*=UTF-8''" + encodeURIComponent(file.name) }
@@ -73,18 +75,23 @@ export function createHandler({ connection, library, signal, logger }) {
       }
       let data
       if (action === 'state') data = await library.state()
-      else if (action === 'categories') data = await library.tagCategories()
-      else if (action === 'directory') data = await library.directory(url.searchParams.get('workspaceId'), url.searchParams.get('path') ?? '', { offset: Number(url.searchParams.get('offset') ?? 0), limit: Number(url.searchParams.get('limit') ?? 100), version: url.searchParams.get('version') ?? undefined })
+      else if (action === 'categories') data = await library.tagCategories(url.searchParams.get('workspaceId'))
+      else if (action === 'folders') data = await library.folders(url.searchParams.get('workspaceId'))
+      else if (action === 'index') data = await library.index(url.searchParams.get('workspaceId'), url.searchParams.get('sourceId'))
+      else if (action === 'directory') data = await library.directory(url.searchParams.get('workspaceId'), url.searchParams.get('sourceId'), url.searchParams.get('path') ?? '', { offset: Number(url.searchParams.get('offset') ?? 0), limit: Number(url.searchParams.get('limit') ?? 100), version: url.searchParams.get('version') ?? undefined })
       else if (action === 'projects/set') { const body = await bodyOf(request); keys(body, ['workspaceId', 'enabled']); data = await library.setProject(body.workspaceId, body.enabled) }
-      else if (action === 'tags') { const body = await bodyOf(request); keys(body, ['workspaceId', 'path', 'tags']); data = await library.setTags(body.workspaceId, body.path, body.tags) }
-      else if (action === 'tags/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'path', 'tags']); data = await library.addTags(body.workspaceId, body.path, body.tags) }
-      else if (action === 'categories/create') { const body = await bodyOf(request); keys(body, ['name']); data = await library.createTagCategory(body.name) }
-      else if (action === 'categories/tags/add') { const body = await bodyOf(request); keys(body, ['categoryId', 'name']); data = await library.addCategoryTag(body.categoryId, body.name) }
+      else if (action === 'tags') { const body = await bodyOf(request); keys(body, ['workspaceId', 'sourceId', 'path', 'tags']); data = await library.setTags(body.workspaceId, body.sourceId, body.path, body.tags) }
+      else if (action === 'tags/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'sourceId', 'path', 'tags']); data = await library.addTags(body.workspaceId, body.sourceId, body.path, body.tags) }
+      else if (action === 'folders/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'path']); data = await library.addFolder(body.workspaceId, body.path) }
+      else if (action === 'folders/remove') { const body = await bodyOf(request); keys(body, ['workspaceId', 'sourceId']); data = await library.removeFolder(body.workspaceId, body.sourceId) }
+      else if (action === 'index/replace') { const body = await bodyOf(request, 32 * 1024 * 1024, 'MEDIA_INDEX_LIMIT'); keys(body, ['workspaceId', 'sourceId', 'items']); data = await library.replaceIndex(body.workspaceId, body.sourceId, body.items) }
+      else if (action === 'categories/create') { const body = await bodyOf(request); keys(body, ['workspaceId', 'name']); data = await library.createTagCategory(body.workspaceId, body.name) }
+      else if (action === 'categories/tags/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'categoryId', 'name']); data = await library.addCategoryTag(body.workspaceId, body.categoryId, body.name) }
       else { response.writeHead(404); response.end(); return }
       json(response, 200, { ok: true, data })
     } catch (error) {
       if (response.headersSent || response.destroyed) { response.destroy(); return }
-      const code = allowedErrors.has(error.code) ? error.code : ['ENOENT', 'ENOTDIR'].includes(error.code) ? 'MEDIA_DIRECTORY_MISSING' : 'MEDIA_OPERATION_FAILED'
+      const code = allowedErrors.has(error.code) ? error.code : ['ENOENT', 'ENOTDIR'].includes(error.code) ? 'MEDIA_DIRECTORY_MISSING' : ['EACCES', 'EPERM', 'EROFS'].includes(error.code) ? 'MEDIA_NOT_READABLE' : 'MEDIA_OPERATION_FAILED'
       if (code === 'MEDIA_OPERATION_FAILED') logger?.warn?.('media-library: %s failed (%s)', action, error.code ?? error.name)
       json(response, 400, { ok: false, error: { code, message: code } })
     } finally {

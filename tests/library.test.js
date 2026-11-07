@@ -22,29 +22,31 @@ test('designation persists by Workspace identity and tags survive cancellation w
   story.push((await library.state()).projects.length)
   await assert.rejects(library.directory('project-one', ''), error => error.code === 'MEDIA_NOT_ENABLED')
   await library.setProject('project-one', true)
+  const sourceId = (await library.addFolder('project-one', media)).folders[0].id
   story.push((await library.state()).projects.map(x => ({ id: x.workspaceId, title: x.title })))
-  const listing = await library.directory('project-one', '')
+  const listing = await library.directory('project-one', sourceId, '')
   story.push(listing.items.map(({ name, kind, tags }) => ({ name, kind, tags })))
-  await library.setTags('project-one', 'clip.mp4', [' 鱼 ', '鱼', '片段'])
+  await library.setTags('project-one', sourceId, 'clip.mp4', [' 鱼 ', '鱼', '片段'])
   const reloaded = new MediaLibrary(options)
-  story.push((await reloaded.directory('project-one', '')).items[0].tags)
+  story.push((await reloaded.directory('project-one', sourceId, '')).items[0].tags)
   registry.get('project-one').title = 'Renamed project'
   assert.equal((await reloaded.state()).projects[0].title, 'Renamed project')
   await reloaded.setProject('project-one', false)
   story.push((await reloaded.state()).projects.length)
-  await assert.rejects(reloaded.open('project-one', 'clip.mp4'), error => error.code === 'MEDIA_NOT_ENABLED')
+  await assert.rejects(reloaded.open('project-one', sourceId, 'clip.mp4'), error => error.code === 'MEDIA_NOT_ENABLED')
   await reloaded.setProject('project-one', true)
-  story.push((await reloaded.directory('project-one', '')).items[0].tags)
+  story.push((await reloaded.directory('project-one', sourceId, '')).items[0].tags)
   assert.equal(await readFile(join(media, 'clip.mp4'), 'utf8'), '0123456789')
   assert.deepEqual(story, JSON.parse(await readFile(new URL('./snapshots/library.json', import.meta.url))))
 }))
 
-test('unknown Workspace, arbitrary root paths and unsupported tag targets cannot become libraries', () => fixture(async ({ library }) => {
+test('unknown Workspace, invalid roots and unsupported tag targets cannot become libraries', () => fixture(async ({ library, media }) => {
   await assert.rejects(library.setProject('missing', true), error => error.code === 'MEDIA_WORKSPACE_MISSING')
   assert.throws(() => library.setProject('../media', true))
   await library.setProject('project-one', true)
-  await assert.rejects(library.setTags('project-one', '../clip.mp4', ['x']))
-  await assert.rejects(library.setTags('project-one', 'clip.mp4', ['\n']))
+  const sourceId = (await library.addFolder('project-one', media)).folders[0].id
+  await assert.rejects(library.setTags('project-one', sourceId, '../clip.mp4', ['x']))
+  await assert.rejects(library.setTags('project-one', sourceId, 'clip.mp4', ['\n']))
 }))
 
 test('membership writer preserves concurrent projects and rejects malformed persisted state', async () => {
@@ -59,26 +61,28 @@ test('membership writer preserves concurrent projects and rejects malformed pers
   } finally { await rm(root, { recursive: true, force: true }) }
 })
 
-test('unload drains accepted writes and refuses further filesystem reads', () => fixture(async ({ library }) => {
+test('unload drains accepted writes and refuses further filesystem reads', () => fixture(async ({ library, media }) => {
   await library.setProject('project-one', true)
-  const accepted = library.setTags('project-one', 'clip.mp4', ['saved'])
+  const sourceId = (await library.addFolder('project-one', media)).folders[0].id
+  const accepted = library.setTags('project-one', sourceId, 'clip.mp4', ['saved'])
   await library.dispose()
   assert.deepEqual((await accepted).tags, ['saved'])
   await assert.rejects(library.directory('project-one', ''), error => error.code === 'MEDIA_UNLOADING')
   await assert.rejects(library.setProject('project-one', true), error => error.code === 'MEDIA_UNLOADING')
 }))
 
-test('category creation and additive media labels preserve existing labels', () => fixture(async ({ library, options }) => {
+test('category creation and additive media labels preserve existing labels', () => fixture(async ({ library, options, media }) => {
   await library.setProject('project-one', true)
-  const category = await library.createTagCategory('类型')
-  await library.addCategoryTag(category.id, '剧情')
-  await library.addCategoryTag(category.id, '喜剧')
-  await library.setTags('project-one', 'clip.mp4', ['自定义'])
-  await Promise.all([library.addTags('project-one', 'clip.mp4', ['剧情']), library.addTags('project-one', 'clip.mp4', ['喜剧'])])
+  const sourceId = (await library.addFolder('project-one', media)).folders[0].id
+  const category = await library.createTagCategory('project-one', '类型')
+  await library.addCategoryTag('project-one', category.id, '剧情')
+  await library.addCategoryTag('project-one', category.id, '喜剧')
+  await library.setTags('project-one', sourceId, 'clip.mp4', ['自定义'])
+  await Promise.all([library.addTags('project-one', sourceId, 'clip.mp4', ['剧情']), library.addTags('project-one', sourceId, 'clip.mp4', ['喜剧'])])
   const restored = new MediaLibrary(options)
-  assert.deepEqual((await restored.tagCategories())[0].tags, ['剧情', '喜剧'])
-  assert.deepEqual((await restored.directory('project-one', '')).items[0].tags, ['自定义', '剧情', '喜剧'])
-  await assert.rejects(restored.addTags('project-one', '../clip.mp4', ['恶意']))
+  assert.deepEqual((await restored.tagCategories('project-one'))[0].tags, ['剧情', '喜剧'])
+  assert.deepEqual((await restored.directory('project-one', sourceId, '')).items[0].tags, ['自定义', '剧情', '喜剧'])
+  await assert.rejects(restored.addTags('project-one', sourceId, '../clip.mp4', ['恶意']))
   await restored.dispose()
   await library.dispose()
 }))

@@ -1,30 +1,33 @@
-/** Workspace-scoped media queries and tag writes. @module */
-import { realpath, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+/** Workspace-owned metadata and explicitly selected media folders. @module */
+import { constants } from 'node:fs'
+import { copyFile, lstat, mkdir, realpath, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { Catalog } from './catalog.js'
+import { FolderStore } from './folder-store.js'
 import { LocalMedia } from './local-media.js'
+import { MediaIndex } from './media-index.js'
 import { ProjectStore, workspaceIdentity } from './project-store.js'
 import { TagTaxonomy } from './tag-taxonomy.js'
 
 /** A request failure safe for a localized Client error message. */
 export function mediaFailure(code) { return Object.assign(new Error(code), { code }) }
 
-/** Membership and tags live in DSH Home, never inside the user's media directory. */
+/** Workspace settings and labels are stored in .dsh-media-library, apart from membership. */
 export class MediaLibrary {
   #registry
   #projects
-  #catalog
-  #taxonomy
+  #legacyCatalog
+  #legacyTaxonomyPath
+  #workspaces = new Map()
   #pending = Promise.resolve()
   #closed = false
   constructor({ workspaceRegistry, stateDir }) {
     this.#registry = workspaceRegistry
     this.#projects = new ProjectStore(join(stateDir, 'projects.json'))
-    this.#catalog = new Catalog(join(stateDir, 'catalog.json'))
-    this.#taxonomy = new TagTaxonomy(join(stateDir, 'tag-taxonomy.json'))
+    this.#legacyCatalog = new Catalog(join(stateDir, 'catalog.json'))
+    this.#legacyTaxonomyPath = join(stateDir, 'tag-taxonomy.json')
   }
 
-  /** Return only registered libraries, resolving titles/paths from Workspace each time. */
   async state() {
     const ids = await this.#projects.list()
     return { projects: ids.flatMap(id => {
@@ -40,7 +43,6 @@ export class MediaLibrary {
     return pending
   }
 
-  /** Change the library designation without renaming or moving the Workspace. */
   setProject(workspaceId, enabled) {
     workspaceIdentity(workspaceId)
     if (typeof enabled !== 'boolean') throw mediaFailure('MEDIA_INVALID_REQUEST')
@@ -56,55 +58,113 @@ export class MediaLibrary {
     })
   }
 
-  async #reader(workspaceId, acceptedWrite = false) {
+  async #workspace(workspaceId, acceptedWrite = false) {
     if (this.#closed && !acceptedWrite) throw mediaFailure('MEDIA_UNLOADING')
     workspaceIdentity(workspaceId)
     const workspace = this.#registry.get(workspaceId)
     if (!workspace) throw mediaFailure('MEDIA_WORKSPACE_MISSING')
     if (!(await this.#projects.list()).includes(workspaceId)) throw mediaFailure('MEDIA_NOT_ENABLED')
-    return new LocalMedia(workspace.path)
+    const root = await realpath(workspace.path), directory = join(root, '.dsh-media-library')
+    try { await mkdir(directory) } catch (error) { if (error.code !== 'EEXIST') throw error }
+    const info = await lstat(directory)
+    if (!info.isDirectory() || info.isSymbolicLink() || await realpath(directory) !== directory) throw mediaFailure('MEDIA_INVALID_ROOT')
+    const old = this.#workspaces.get(workspaceId)
+    if (old?.root === root) return old
+    const taxonomyPath = join(directory, 'tag-taxonomy.json')
+    // Exclusive copy preserves the old document and never replaces local workspace data.
+    try {
+      await new TagTaxonomy(this.#legacyTaxonomyPath).list()
+      await copyFile(this.#legacyTaxonomyPath, taxonomyPath, constants.COPYFILE_EXCL)
+    } catch (error) { if (error.code !== 'ENOENT' && error.code !== 'EEXIST') throw error }
+    const entry = { root, folders: new FolderStore(join(directory, 'folders.json')), catalog: new Catalog(join(directory, 'catalog.json')), taxonomy: new TagTaxonomy(taxonomyPath), index: new MediaIndex(join(directory, 'index.json')) }
+    this.#workspaces.set(workspaceId, entry)
+    return entry
   }
 
-  /** Read just one directory page; binary media is fetched only on selection. */
-  async directory(workspaceId, path, options) {
-    const reader = await this.#reader(workspaceId)
+  async folders(workspaceId) { return { folders: await (await this.#workspace(workspaceId)).folders.list() } }
+
+  addFolder(workspaceId, path) {
+    return this.#write(async () => {
+      const workspace = await this.#workspace(workspaceId, true)
+      const folder = await workspace.folders.add(path)
+      // Old catalog paths were relative to the workspace root. Import only paths
+      // contained by the selected folder; retain old bytes as a recovery source.
+      const legacy = []
+      for (const item of folder.migrated ? [] : await this.#legacyCatalog.list()) {
+        if (item.source !== workspaceId) continue
+        const parts = item.path.slice(1).split('/')
+        if (parts.some(part => !part || part.startsWith('.') || /[\\:\x00-\x1f\x7f]/u.test(part))) continue
+        const absolute = resolve(workspace.root, ...parts), suffix = relative(folder.path, absolute)
+        if (!suffix || isAbsolute(suffix) || suffix === '..' || suffix.startsWith(`..${sep}`)) continue
+        legacy.push({ path: '/' + suffix.split(sep).join('/'), tags: item.tags })
+      }
+      if (legacy.length) await workspace.catalog.importMissing(folder.id, legacy)
+      if (!folder.migrated) await workspace.folders.markMigrated(folder.id)
+      return { folders: await workspace.folders.list() }
+    })
+  }
+
+  removeFolder(workspaceId, sourceId) {
+    return this.#write(async () => {
+      const workspace = await this.#workspace(workspaceId, true)
+      await workspace.folders.remove(sourceId)
+      return { folders: await workspace.folders.list() }
+    })
+  }
+
+  async #reader(workspaceId, sourceId, acceptedWrite = false) {
+    const workspace = await this.#workspace(workspaceId, acceptedWrite)
+    const folder = (await workspace.folders.list()).find(item => item.id === sourceId)
+    if (!folder) throw mediaFailure('MEDIA_SOURCE_MISSING')
+    return { workspace, reader: new LocalMedia(folder.path) }
+  }
+
+  async directory(workspaceId, sourceId, path, options) {
+    const { workspace, reader } = await this.#reader(workspaceId, sourceId)
     const listing = await reader.list(path, options)
     const wanted = new Set(listing.items.map(item => '/' + item.path))
-    const tags = new Map((await this.#catalog.list()).filter(item => item.source === workspaceId && wanted.has(item.path)).map(item => [item.path, item.tags]))
+    const tags = new Map((await workspace.catalog.list()).filter(item => item.source === sourceId && wanted.has(item.path)).map(item => [item.path, item.tags]))
     return { ...listing, items: listing.items.map(item => ({ ...item, tags: tags.get('/' + item.path) ?? [] })) }
   }
 
-  /** Open a known media file within an enabled project. Caller closes its descriptor. */
-  async open(workspaceId, path) { return (await this.#reader(workspaceId)).open(path) }
+  async open(workspaceId, sourceId, path) { return (await this.#reader(workspaceId, sourceId)).reader.open(path) }
 
-  /** Persist only user-entered labels after confirming the target is actual media. */
-  setTags(workspaceId, path, tags) {
+  /** A prior completed scan can render while a new scan is in progress. */
+  async index(workspaceId, sourceId) {
+    const { workspace } = await this.#reader(workspaceId, sourceId)
+    const items = await workspace.index.list(sourceId)
+    const tags = new Map((await workspace.catalog.list()).filter(item => item.source === sourceId).map(item => [item.path, item.tags]))
+    return { items: items.map(item => ({ ...item, kind: 'video', tags: tags.get('/' + item.path) ?? [] })) }
+  }
+
+  /** Replace one source index only after the caller completes the entire scan. */
+  replaceIndex(workspaceId, sourceId, items) {
     return this.#write(async () => {
-      const reader = await this.#reader(workspaceId, true)
-      const media = await reader.open(path)
-      await media.handle.close()
-      return this.#catalog.setTags(workspaceId, '/' + path, tags)
+      const { workspace } = await this.#reader(workspaceId, sourceId, true)
+      const replaced = await workspace.index.replace(sourceId, items)
+      return { count: replaced.length }
     })
   }
 
-  /** Append labels without replacing existing user or Agent labels. */
-  addTags(workspaceId, path, tags) {
+  setTags(workspaceId, sourceId, path, tags) {
     return this.#write(async () => {
-      const reader = await this.#reader(workspaceId, true)
-      const media = await reader.open(path)
-      await media.handle.close()
-      return this.#catalog.addTags(workspaceId, '/' + path, tags)
+      const { workspace, reader } = await this.#reader(workspaceId, sourceId, true)
+      const media = await reader.open(path); await media.handle.close()
+      return workspace.catalog.setTags(sourceId, '/' + path, tags)
     })
   }
 
-  async tagCategories() {
-    if (this.#closed) throw mediaFailure('MEDIA_UNLOADING')
-    return this.#taxonomy.list()
+  addTags(workspaceId, sourceId, path, tags) {
+    return this.#write(async () => {
+      const { workspace, reader } = await this.#reader(workspaceId, sourceId, true)
+      const media = await reader.open(path); await media.handle.close()
+      return workspace.catalog.addTags(sourceId, '/' + path, tags)
+    })
   }
 
-  createTagCategory(name) { return this.#write(() => this.#taxonomy.createCategory(name)) }
-  addCategoryTag(categoryId, name) { return this.#write(() => this.#taxonomy.addTag(categoryId, name)) }
+  async tagCategories(workspaceId) { return (await this.#workspace(workspaceId)).taxonomy.list() }
+  createTagCategory(workspaceId, name) { return this.#write(async () => (await this.#workspace(workspaceId, true)).taxonomy.createCategory(name)) }
+  addCategoryTag(workspaceId, categoryId, name) { return this.#write(async () => (await this.#workspace(workspaceId, true)).taxonomy.addTag(categoryId, name)) }
 
-  /** Stop admission and let already accepted writes reach their durable end. */
-  async dispose() { this.#closed = true; await this.#pending; await this.#projects.drain(); await this.#taxonomy.drain() }
+  async dispose() { this.#closed = true; await this.#pending; await this.#projects.drain(); await Promise.all([...this.#workspaces.values()].map(item => item.taxonomy.drain())) }
 }

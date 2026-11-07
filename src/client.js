@@ -10,27 +10,27 @@ window.__ModuleLoader__.load({
       emptyProjects: '在左侧项目上右键，选择「设为媒体库」。', projects: '媒体库项目', back: '返回聊天', loading: '正在读取…', refresh: '刷新', retry: '重试',
       parent: '上一层', root: '项目目录', noFiles: '此目录没有可浏览的媒体或子目录', previousPage: '上一页', nextPage: '下一页', page: '第', pageSuffix: '页', folder: '目录', video: '视频', audio: '音频', image: '图片',
       tags: '标签', tagHelp: '用逗号分隔标签', saveTags: '保存标签', saving: '正在保存…', saved: '标签已保存', close: '关闭预览', previewFailed: '浏览器无法播放或显示此媒体，可换用支持的媒体格式',
-      requestFailed: '读取未完成，请重试', changed: '目录已变化，请刷新后继续', unavailable: '此项目已移出媒体库，请返回项目列表', invalidTags: '最多填写 100 个标签，每个标签不超过 100 个字符',
+      requestFailed: '读取未完成，请重试', changed: '目录已变化，请刷新后继续', unavailable: '此项目已移出媒体库，请返回项目列表', invalidTags: '最多填写 100 个标签，每个标签不超过 100 个字符', indexLimit: '视频索引超过容量上限，原索引已保留',
       fileGone: '媒体文件已不存在，请刷新目录', denied: '无法访问该目录或文件', failedSave: '标签保存未确认，请刷新后核对', browse: '浏览', bytes: '字节', removed: '媒体库登记已取消，原文件和标签保留',
-      allVideos: '全部视频', uncategorized: '未分类', all: '全部', category: '标签分类', newCategory: '新增分类', newTag: '新增标签', categoryName: '分类名称', tagName: '标签名称', add: '添加', scanning: '正在扫描视频…', noVideos: '没有找到视频', noCover: '暂无封面', duplicate: '分类或标签名称已存在', sort: '排序', sortUpdated: '更新时间（新到旧）', sortName: '名称（A 到 Z）', sortSize: '文件大小（大到小）',
+      allVideos: '全部视频', uncategorized: '未分类', all: '全部', category: '标签分类', newCategory: '新增分类', newTag: '新增标签', categoryName: '分类名称', tagName: '标签名称', add: '添加', scanning: '正在扫描视频…', noVideos: '没有找到视频', noCover: '暂无封面', duplicate: '分类或标签名称已存在', sort: '排序', sortUpdated: '更新时间（新到旧）', sortName: '名称（A 到 Z）', sortSize: '文件大小（大到小）', settings: '设置', done: '完成', folders: '媒体文件夹', addFolder: '添加文件夹', removeFolder: '移除', noFolders: '请在设置中添加媒体文件夹',
     }
     const en = {
       title: 'Media library', set: 'Use as media library', open: 'Open media library', remove: 'Remove media library designation', menuFailed: 'The media library action did not complete. Retry.',
       emptyProjects: 'Right-click a project in the sidebar and choose “Use as media library”.', projects: 'Media projects', back: 'Back to chat', loading: 'Loading…', refresh: 'Refresh', retry: 'Retry',
       parent: 'Up one level', root: 'Project directory', noFiles: 'No supported media or subdirectories here.', previousPage: 'Previous page', nextPage: 'Next page', page: 'Page', pageSuffix: '', folder: 'Directory', video: 'Video', audio: 'Audio', image: 'Image',
       tags: 'Tags', tagHelp: 'Separate tags with commas', saveTags: 'Save tags', saving: 'Saving…', saved: 'Tags saved', close: 'Close preview', previewFailed: 'This browser cannot play or display this media. Use a supported format.',
-      requestFailed: 'Could not read this item. Retry.', changed: 'The directory changed. Refresh before continuing.', unavailable: 'This project is no longer a media library. Return to the project list.', invalidTags: 'Use up to 100 tags, each no longer than 100 characters.',
+      requestFailed: 'Could not read this item. Retry.', changed: 'The directory changed. Refresh before continuing.', unavailable: 'This project is no longer a media library. Return to the project list.', invalidTags: 'Use up to 100 tags, each no longer than 100 characters.', indexLimit: 'The video index exceeds its capacity. The previous index was retained.',
       fileGone: 'This media file no longer exists. Refresh the directory.', denied: 'This directory or file cannot be accessed.', failedSave: 'The tag save is unconfirmed. Refresh to check.', browse: 'Browse', bytes: 'bytes', removed: 'The designation was removed. Files and tags are retained.',
-      allVideos: 'All videos', uncategorized: 'Uncategorized', all: 'All', category: 'Tag categories', newCategory: 'New category', newTag: 'New tag', categoryName: 'Category name', tagName: 'Tag name', add: 'Add', scanning: 'Scanning videos…', noVideos: 'No videos found', noCover: 'No cover', duplicate: 'The category or tag name already exists.', sort: 'Sort', sortUpdated: 'Recently updated', sortName: 'Name (A to Z)', sortSize: 'Size (largest first)',
+      allVideos: 'All videos', uncategorized: 'Uncategorized', all: 'All', category: 'Tag categories', newCategory: 'New category', newTag: 'New tag', categoryName: 'Category name', tagName: 'Tag name', add: 'Add', scanning: 'Scanning videos…', noVideos: 'No videos found', noCover: 'No cover', duplicate: 'The category or tag name already exists.', sort: 'Sort', sortUpdated: 'Recently updated', sortName: 'Name (A to Z)', sortSize: 'Size (largest first)', settings: 'Settings', done: 'Done', folders: 'Media folders', addFolder: 'Add folder', removeFolder: 'Remove', noFolders: 'Add a media folder in Settings.',
     }
 
     /** Read one owner-authenticated endpoint; caller owns request cancellation. */
-    async function request(path, { body, signal } = {}) {
+    async function request(path, { body, signal, timeoutMs = 20000 } = {}) {
       let response
       try {
         response = await fetch(`/media-library/${path}`, {
           method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin',
-          signal: AbortSignal.any([AbortSignal.timeout(20000), ...(signal ? [signal] : [])]),
+          signal: AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(signal ? [signal] : [])]),
           headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
           ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         })
@@ -63,6 +63,7 @@ window.__ModuleLoader__.load({
       if (['MEDIA_PROJECT_DISABLED', 'MEDIA_PROJECT_NOT_FOUND', 'MEDIA_WORKSPACE_NOT_FOUND', 'MEDIA_NOT_ENABLED', 'MEDIA_WORKSPACE_MISSING'].includes(error.code)) return 'unavailable'
       if (['MEDIA_NOT_FOUND', 'MEDIA_FILE_CHANGED', 'ENOENT'].includes(error.code)) return 'fileGone'
       if (error.code === 'MEDIA_TAG_EXISTS' || error.code === 'MEDIA_CATEGORY_EXISTS') return 'duplicate'
+      if (error.code === 'MEDIA_INDEX_LIMIT' || error.code === 'MEDIA_CATALOG_LIMIT') return 'indexLimit'
       if (['MEDIA_PATH_DENIED', 'MEDIA_ACCESS_DENIED', 'MEDIA_OUTSIDE_ROOT', 'MEDIA_LINK_REFUSED', 'MEDIA_NOT_READABLE', 'MEDIA_INVALID_ROOT', 'EACCES', 'EPERM'].includes(error.code)) return 'denied'
       return 'requestFailed'
     }
@@ -94,7 +95,7 @@ window.__ModuleLoader__.load({
         const controller = new AbortController(); write.current = controller
         setBusy(true); setError(''); setSaved(false)
         try {
-          const result = await request('tags', { body: { workspaceId, path: item.path, tags }, signal: controller.signal })
+          const result = await request('tags', { body: { workspaceId, sourceId: item.sourceId, path: item.path, tags }, signal: controller.signal })
           if (controller.signal.aborted || lifetime.current?.signal.aborted) return
           onTagsChanged(item.path, result.tags)
           setDraft(result.tags.join(', ')); setSaved(true)
@@ -104,7 +105,7 @@ window.__ModuleLoader__.load({
           if (!controller.signal.aborted && !lifetime.current?.signal.aborted) setBusy(false)
         }
       }
-      const url = `/media-library/file?${new URLSearchParams({ workspaceId, path: item.path })}`
+      const url = `/media-library/file?${new URLSearchParams({ workspaceId, sourceId: item.sourceId ?? '', path: item.path })}`
       return h('section', { className: 'dsh-media-preview', 'aria-label': item.name, 'aria-busy': busy },
         h('div', { className: 'dsh-media-heading' }, h('h2', null, item.name), h(Button, { variant: 'ghost', disabled: busy, onClick: onClose }, t('close'))),
         item.kind === 'image' ? h('img', { src: url, alt: item.name, onError: () => setMediaError(true) })
@@ -182,9 +183,22 @@ window.__ModuleLoader__.load({
           h(Button, { variant: 'outline', disabled: loading || !cursor.hasMore, onClick: () => setPage({ offset: cursor.nextOffset, version: cursor.version }) }, t('nextPage'))) : null)
     }
 
-    /** Incrementally traverse designated folders using the existing bounded directory API. */
-    function VideoGrid({ project, t }) {
-      const [videos, setVideos] = React.useState([]), [categories, setCategories] = React.useState([])
+    /** Load a video frame only while its card is near the viewport. */
+    function VideoCover({ workspaceId, video }) {
+      const anchor = React.useRef(null), [visible, setVisible] = React.useState(false), [failed, setFailed] = React.useState(false)
+      React.useEffect(() => {
+        if (typeof IntersectionObserver === 'undefined') { setVisible(true); return }
+        const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect() } }, { rootMargin: '200px' })
+        if (anchor.current) observer.observe(anchor.current)
+        return () => observer.disconnect()
+      }, [])
+      const src = `/media-library/file?${new URLSearchParams({ workspaceId, sourceId: video.sourceId, path: video.path })}`
+      return h('span', { className: 'dsh-media-cover', ref: anchor, 'aria-hidden': true }, visible && !failed ? h('video', { src, muted: true, preload: 'metadata', playsInline: true, onLoadedMetadata: event => { const el = event.currentTarget; if (Number.isFinite(el.duration) && el.duration > 0) el.currentTime = Math.min(el.duration * 0.1, 10) }, onError: () => setFailed(true) }) : '▶')
+    }
+
+    /** Incrementally traverse the selected media folders. */
+    function VideoGrid({ project, t, pickDirectory }) {
+      const [videos, setVideos] = React.useState([]), [categories, setCategories] = React.useState([]), [folders, setFolders] = React.useState([]), [settings, setSettings] = React.useState(false)
       const [filter, setFilter] = React.useState(''), [selected, setSelected] = React.useState(null)
       const [sort, setSort] = React.useState('updated')
       const [categoryName, setCategoryName] = React.useState(''), [tagName, setTagName] = React.useState(''), [categoryId, setCategoryId] = React.useState('')
@@ -194,29 +208,50 @@ window.__ModuleLoader__.load({
         setVideos([]); setSelected(null); setError(''); setLoading(true)
         void (async () => {
           try {
-            setCategories(await request('categories', { signal: controller.signal }))
-            const pending = ['']
+            const workspaceId = project.workspaceId
+            const query = new URLSearchParams({ workspaceId })
+            const [categoryData, folderData] = await Promise.all([request(`categories?${query}`, { signal: controller.signal }), request(`folders?${query}`, { signal: controller.signal })])
+            if (controller.signal.aborted) return
+            setCategories(categoryData); setFolders(folderData.folders)
+            const indexes = new Map(folderData.folders.map(folder => [folder.id, []]))
+            const stored = await Promise.all(folderData.folders.map(async folder => ({ sourceId: folder.id, result: await request(`index?${new URLSearchParams({ workspaceId, sourceId: folder.id })}`, { signal: controller.signal, timeoutMs: 120000 }) })))
+            if (controller.signal.aborted) return
+            const cachedSources = new Set(stored.filter(entry => entry.result.items.length).map(entry => entry.sourceId))
+            setVideos(stored.flatMap(entry => entry.result.items.map(item => ({ ...item, sourceId: entry.sourceId }))))
+            const fresh = []
+            const pending = folderData.folders.map(folder => ({ sourceId: folder.id, path: '' }))
             while (pending.length && !controller.signal.aborted) {
-              const path = pending.shift(); let offset = 0, version
+              const { sourceId, path } = pending.shift(); let offset = 0, version
               do {
-                const query = { workspaceId: project.workspaceId, path, offset: String(offset), limit: '100' }
+                const query = { workspaceId: project.workspaceId, sourceId, path, offset: String(offset), limit: '100' }
                 if (version) query.version = version
                 const result = await request(`directory?${new URLSearchParams(query)}`, { signal: controller.signal })
                 if (controller.signal.aborted) return
-                const found = result.items.filter(item => item.kind === 'video')
-                pending.push(...result.items.filter(item => item.kind === 'directory').map(item => item.path))
-                if (found.length) setVideos(previous => [...previous, ...found])
+                if (!Array.isArray(result.items) || result.items.length > 100 || typeof result.hasMore !== 'boolean' || (result.hasMore && (!Number.isInteger(result.nextOffset) || result.nextOffset <= offset))) throw new Error('Invalid media directory page')
+                const found = result.items.filter(item => item.kind === 'video').map(item => ({ ...item, sourceId }))
+                fresh.push(...found)
+                indexes.get(sourceId).push(...found.map(({ path, name, size, modified }) => ({ path, name, size, modified })))
+                pending.push(...result.items.filter(item => item.kind === 'directory').map(item => ({ sourceId, path: item.path })))
+                if (found.length && !cachedSources.has(sourceId)) setVideos(previous => [...previous, ...found])
                 offset = result.hasMore ? result.nextOffset : null; version = result.version
               } while (offset !== null && !controller.signal.aborted)
+            }
+            if (controller.signal.aborted) return
+            setVideos(fresh)
+            for (const [sourceId, items] of indexes) {
+              if (controller.signal.aborted) return
+              await request('index/replace', { body: { workspaceId: project.workspaceId, sourceId, items }, signal: controller.signal, timeoutMs: 120000 })
             }
           } catch (failure) { if (!controller.signal.aborted) setError(errorKey(failure)) }
           finally { if (!controller.signal.aborted) setLoading(false) }
         })()
         return () => controller.abort()
       }, [project.workspaceId, revision])
-      const refreshCategories = async () => setCategories(await request('categories'))
-      const createCategory = async () => { try { await request('categories/create', { body: { name: categoryName } }); setCategoryName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
-      const createTag = async () => { try { await request('categories/tags/add', { body: { categoryId, name: tagName } }); setTagName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
+      const refreshCategories = async () => setCategories(await request(`categories?${new URLSearchParams({ workspaceId: project.workspaceId })}`))
+      const createCategory = async () => { try { await request('categories/create', { body: { workspaceId: project.workspaceId, name: categoryName } }); setCategoryName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
+      const createTag = async () => { try { await request('categories/tags/add', { body: { workspaceId: project.workspaceId, categoryId, name: tagName } }); setTagName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
+      const addFolder = async () => { try { const path = await pickDirectory(); if (path) { const result = await request('folders/add', { body: { workspaceId: project.workspaceId, path } }); setFolders(result.folders); setRevision(value => value + 1) } } catch (failure) { setError(errorKey(failure)) } }
+      const removeFolder = async sourceId => { try { const result = await request('folders/remove', { body: { workspaceId: project.workspaceId, sourceId } }); setFolders(result.folders); setRevision(value => value + 1) } catch (failure) { setError(errorKey(failure)) } }
       const matching = videos.filter(video => !filter || (filter === '__untagged__' ? !video.tags?.length : video.tags?.includes(filter.slice(4)))).sort((a, b) => {
         const name = a.name.localeCompare(b.name, undefined, { numeric: true }) || a.path.localeCompare(b.path)
         if (sort === 'name') return name
@@ -224,25 +259,27 @@ window.__ModuleLoader__.load({
         return (Date.parse(b.modified) || 0) - (Date.parse(a.modified) || 0) || name
       })
       return h('div', { className: 'dsh-media-grid-view' },
-        h('div', { className: 'dsh-media-heading' }, h('h2', null, project.title), h(Button, { variant: 'outline', onClick: () => setRevision(value => value + 1) }, t('refresh'))),
+        h('div', { className: 'dsh-media-heading' }, h('h2', null, project.title), h('div', { className: 'dsh-media-actions' }, h(Button, { variant: 'outline', onClick: () => setRevision(value => value + 1) }, t('refresh')), h(Button, { variant: 'outline', onClick: () => setSettings(value => !value) }, t(settings ? 'done' : 'settings')))),
+        settings ? h('section', { className: 'dsh-media-settings', 'aria-label': t('settings') }, h('h3', null, t('folders')), ...folders.map(folder => h('div', { key: folder.id, className: 'dsh-media-folder' }, h('span', null, folder.path), h(Button, { variant: 'ghost', onClick: () => void removeFolder(folder.id) }, t('removeFolder')))), h(Button, { variant: 'outline', onClick: () => void addFolder() }, t('addFolder')), h('h3', null, t('category')),
+          h('div', { className: 'dsh-media-actions' }, h(Input, { value: categoryName, placeholder: t('categoryName'), 'aria-label': t('categoryName'), onChange: event => setCategoryName(event.target.value) }), h(Button, { variant: 'outline', disabled: !categoryName.trim(), onClick: () => void createCategory() }, t('newCategory'))),
+          h('div', { className: 'dsh-media-actions' }, h('select', { value: categoryId, 'aria-label': t('category'), onChange: event => setCategoryId(event.target.value) }, h('option', { value: '' }, t('category')), ...categories.map(category => h('option', { value: category.id, key: category.id }, category.name))), h(Input, { value: tagName, placeholder: t('tagName'), 'aria-label': t('tagName'), onChange: event => setTagName(event.target.value) }), h(Button, { variant: 'outline', disabled: !categoryId || !tagName.trim(), onClick: () => void createTag() }, t('newTag'))),
+          ...categories.map(category => h('p', { key: category.id }, `${category.name}: ${category.tags.join(' · ')}`))) : null,
+        !settings ? h(React.Fragment, null,
         h('label', { className: 'dsh-media-sort' }, t('sort'), ' ', h('select', { value: sort, 'aria-label': t('sort'), onChange: event => { setSort(event.target.value); setVisible(60) } }, h('option', { value: 'updated' }, t('sortUpdated')), h('option', { value: 'name' }, t('sortName')), h('option', { value: 'size' }, t('sortSize')))),
         h('div', { className: 'dsh-media-filters', 'aria-label': t('category') },
           h(Button, { variant: filter === '' ? 'primary' : 'ghost', onClick: () => setFilter('') }, t('all')),
           h(Button, { variant: filter === '__untagged__' ? 'primary' : 'ghost', onClick: () => setFilter('__untagged__') }, t('uncategorized')),
           ...categories.map(category => h('div', { key: category.id }, h('strong', null, category.name), ...category.tags.map(tag => h(Button, { key: tag, variant: filter === `tag:${tag}` ? 'primary' : 'ghost', onClick: () => setFilter(`tag:${tag}`) }, tag))))),
-        h('details', null, h('summary', null, t('category')),
-          h('div', { className: 'dsh-media-actions' }, h(Input, { value: categoryName, placeholder: t('categoryName'), 'aria-label': t('categoryName'), onChange: event => setCategoryName(event.target.value) }), h(Button, { variant: 'outline', disabled: !categoryName.trim(), onClick: () => void createCategory() }, t('newCategory'))),
-          h('div', { className: 'dsh-media-actions' }, h('select', { value: categoryId, 'aria-label': t('category'), onChange: event => setCategoryId(event.target.value) }, h('option', { value: '' }, t('category')), ...categories.map(category => h('option', { value: category.id, key: category.id }, category.name))), h(Input, { value: tagName, placeholder: t('tagName'), 'aria-label': t('tagName'), onChange: event => setTagName(event.target.value) }), h(Button, { variant: 'outline', disabled: !categoryId || !tagName.trim(), onClick: () => void createTag() }, t('newTag')))),
-        selected ? h(Preview, { key: selected.path, item: selected, workspaceId: project.workspaceId, categories, t, onClose: () => setSelected(null), onTagsChanged: (path, tags) => { setVideos(items => items.map(item => item.path === path ? { ...item, tags } : item)); setSelected(item => item?.path === path ? { ...item, tags } : item) } }) : null,
-        !selected ? h('div', { className: 'dsh-media-grid' }, ...matching.slice(0, visible).map(video => h('button', { type: 'button', key: video.path, className: 'dsh-media-card', onClick: () => setSelected(video) }, h('span', { className: 'dsh-media-cover', 'aria-hidden': true }, '▶'), h('span', { className: 'dsh-media-card-title' }, video.name), h('span', { className: 'dsh-media-card-tags' }, video.tags?.length ? video.tags.join(' · ') : t('uncategorized'))))) : null,
+        selected ? h(Preview, { key: `${selected.sourceId}:${selected.path}`, item: selected, workspaceId: project.workspaceId, categories, t, onClose: () => setSelected(null), onTagsChanged: (path, tags) => { setVideos(items => items.map(item => item.sourceId === selected.sourceId && item.path === path ? { ...item, tags } : item)); setSelected(item => item?.path === path ? { ...item, tags } : item) } }) : null,
+        !selected ? h('div', { className: 'dsh-media-grid' }, ...matching.slice(0, visible).map(video => h('button', { type: 'button', key: `${video.sourceId}:${video.path}`, className: 'dsh-media-card', onClick: () => setSelected(video) }, h(VideoCover, { workspaceId: project.workspaceId, video }), h('span', { className: 'dsh-media-card-title' }, video.name), h('span', { className: 'dsh-media-card-tags' }, video.tags?.length ? video.tags.join(' · ') : t('uncategorized'))))) : null,
         !selected && matching.length > visible ? h(Button, { variant: 'outline', onClick: () => setVisible(value => value + 60) }, t('nextPage')) : null,
         loading ? h('p', { role: 'status' }, t('scanning')) : null,
-        !loading && !error && !matching.length ? h('p', null, t('noVideos')) : null,
+        !loading && !error && !matching.length ? h('p', null, t(folders.length ? 'noVideos' : 'noFolders')) : null) : null,
         error ? h('p', { role: 'alert' }, t(error)) : null)
     }
 
     /** The panel subscribes only to the chosen project and reloads Host membership. */
-    function Library({ t, selectedSubscribe, selectedSnapshot, selectProject, back }) {
+    function Library({ t, selectedSubscribe, selectedSnapshot, selectProject, back, pickDirectory }) {
       const workspaceId = React.useSyncExternalStore(selectedSubscribe, selectedSnapshot, selectedSnapshot)
       const [projects, setProjects] = React.useState(null), [error, setError] = React.useState(''), [revision, setRevision] = React.useState(0)
       React.useEffect(() => {
@@ -261,7 +298,7 @@ window.__ModuleLoader__.load({
           h(Button, { key: row.workspaceId, variant: row.workspaceId === workspaceId ? 'primary' : 'outline', 'aria-pressed': row.workspaceId === workspaceId, onClick: () => selectProject(row.workspaceId) }, row.title))) : null,
         projects?.length === 0 ? h('p', null, t('emptyProjects')) : null,
         workspaceId !== null && projects !== null && !project && !error ? h('p', { role: 'status' }, t('unavailable')) : null,
-        project ? h(VideoGrid, { key: project.workspaceId, project, t }) : null)
+        project ? h(VideoGrid, { key: project.workspaceId, project, t, pickDirectory }) : null)
     }
 
     function Configuration({ t, open }) {
@@ -290,7 +327,7 @@ window.__ModuleLoader__.load({
       return null
     }
 
-    function SessionLibrary({ sessionId, workspaces, t }) {
+    function SessionLibrary({ sessionId, workspaces, t, pickDirectory }) {
       const snapshot = React.useSyncExternalStore(listener => workspaces.list.subscribe(listener), () => workspaces.list.getSnapshot(), () => workspaces.list.getSnapshot())
       const workspaceId = snapshot.items.find(item => item.sessionIds.includes(sessionId))?.workspaceId
       const [projects, setProjects] = React.useState([])
@@ -301,7 +338,7 @@ window.__ModuleLoader__.load({
         return () => controller.abort()
       }, [workspaceId])
       const project = projects.find(item => item.workspaceId === workspaceId)
-      return h('div', { className: 'dsh-media-library' }, error ? h('p', { role: 'alert' }, t(error)) : project ? h(VideoGrid, { key: project.workspaceId, project, t }) : h('p', null, t('unavailable')))
+      return h('div', { className: 'dsh-media-library' }, error ? h('p', { role: 'alert' }, t(error)) : project ? h(VideoGrid, { key: project.workspaceId, project, t, pickDirectory }) : h('p', null, t('unavailable')))
     }
 
     const styles = `.dsh-media-library{height:100%;overflow:auto;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:24px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);min-width:0}.dsh-media-library h1,.dsh-media-library h2{font-weight:500;margin:0;overflow-wrap:anywhere}.dsh-media-library h1{font-size:20px}.dsh-media-library h2{font-size:16px}.dsh-media-library p{margin:0;line-height:1.6}.dsh-media-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.dsh-media-projects,.dsh-media-actions,.dsh-media-breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.dsh-media-projects button,.dsh-media-breadcrumb button{max-width:100%;overflow-wrap:anywhere;white-space:normal}.dsh-media-browser{display:flex;flex-direction:column;gap:16px;min-width:0}.dsh-media-files{list-style:none;display:flex;flex-direction:column;margin:0;padding:0}.dsh-media-files li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 16px;padding:8px 0;border-bottom:0.5px solid var(--dsw-alias-border-l1)}.dsh-media-files li>button{min-width:0;justify-content:flex-start;height:auto;min-height:36px}.dsh-media-file-name{overflow-wrap:anywhere;white-space:normal;text-align:start}.dsh-media-file-meta,.dsh-media-file-tags{font-size:13px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}.dsh-media-file-tags{grid-column:1/-1;padding-inline:12px}.dsh-media-preview{display:flex;flex-direction:column;gap:16px;padding:16px;border:0.5px solid var(--dsw-alias-border-l1);border-radius:12px;min-width:0}.dsh-media-preview video,.dsh-media-preview audio,.dsh-media-preview img{display:block;max-width:100%;width:100%;max-height:55vh;object-fit:contain}.dsh-media-preview audio{height:54px}.dsh-media-tags{display:flex;flex-direction:column;gap:8px;min-width:0}.dsh-media-tags>span{min-width:0}.dsh-media-error{color:var(--dsw-alias-state-error-primary);display:flex;flex-direction:column;align-items:flex-start;gap:8px}.dsh-media-config{display:flex;flex-direction:column;gap:16px;align-items:flex-start}.dsh-media-config p{margin:0;line-height:1.6}@media(max-width:600px){.dsh-media-library{padding:16px;gap:20px}.dsh-media-files li{grid-template-columns:minmax(0,1fr)}.dsh-media-file-meta{padding-inline:12px}.dsh-media-preview{padding:12px}.dsh-media-heading{align-items:flex-start}.dsh-media-preview .dsh-media-heading{flex-direction:column}}`
@@ -312,7 +349,7 @@ window.__ModuleLoader__.load({
       ctx.effect(() => ctx.locale.register(namespace, { zh, en }))
       const t = ctx.locale.bind(namespace)
       ctx.effect(() => () => lifetime.abort())
-      ctx.effect(() => { const style = document.createElement('style'); style.textContent = styles + `.dsh-media-grid-view{display:flex;flex-direction:column;gap:16px;min-width:0}.dsh-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:20px 14px}.dsh-media-card{border:0;background:transparent;color:inherit;padding:0;text-align:left;min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:6px}.dsh-media-card:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:4px}.dsh-media-cover{display:grid;place-items:center;width:100%;aspect-ratio:3/4;border-radius:8px;background:linear-gradient(145deg,#29405b,#131f32);font-size:30px;color:#d8e7fc}.dsh-media-card-title{overflow-wrap:anywhere;font-size:14px}.dsh-media-card-tags{font-size:12px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}.dsh-media-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dsh-media-filters>div{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.dsh-media-grid-view details{display:flex}.dsh-media-grid-view details>.dsh-media-actions{margin-top:10px}.dsh-media-tag-group{display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0}.dsh-media-tag-group label{display:flex;gap:4px;align-items:center}`; document.head.appendChild(style); return () => style.remove() })
+      ctx.effect(() => { const style = document.createElement('style'); style.textContent = styles + `.dsh-media-grid-view{display:flex;flex-direction:column;gap:16px;min-width:0}.dsh-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:20px 14px}.dsh-media-card{border:0;background:transparent;color:inherit;padding:0;text-align:left;min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:6px}.dsh-media-card:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:4px}.dsh-media-cover{display:grid;place-items:center;width:100%;aspect-ratio:3/4;border-radius:8px;overflow:hidden;background:linear-gradient(145deg,#29405b,#131f32);font-size:30px;color:#d8e7fc}.dsh-media-cover video{width:100%;height:100%;object-fit:cover;pointer-events:none}.dsh-media-card-title{overflow-wrap:anywhere;font-size:14px}.dsh-media-card-tags{font-size:12px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}.dsh-media-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dsh-media-filters>div{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.dsh-media-settings{display:flex;flex-direction:column;align-items:flex-start;gap:12px}.dsh-media-settings h3{margin:4px 0}.dsh-media-folder{display:flex;align-items:center;gap:8px;max-width:100%;overflow-wrap:anywhere}.dsh-media-tag-group{display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0}.dsh-media-tag-group label{display:flex;gap:4px;align-items:center}`; document.head.appendChild(style); return () => style.remove() })
       const open = workspaceId => {
         selection.select(workspaceId)
         const current = ctx.sidebarRight.mounted.getSnapshot()
@@ -322,9 +359,9 @@ window.__ModuleLoader__.load({
         } else ctx.layout.selectPanel('media-library')
       }
       ctx.effect(() => ctx.sidebarRightTabs.register({ id: 'dsh-media-library', kind: 'media-library', title: () => t('title') }))
-      ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-media-library', locale: namespace, inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, t }) }, SessionLibrary))
+      ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-media-library', locale: namespace, inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, t, pickDirectory: () => ctx.uiWorkspace.pickDirectory() }) }, SessionLibrary))
       ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'dsh-media-library', inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, sidebar: ctx.sidebarRight, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot }) }, SessionMedia))
-      const inject = () => ({ t, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot, selectProject: selection.select, back: () => ctx.layout.selectPanel(null) })
+      const inject = () => ({ t, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot, selectProject: selection.select, back: () => ctx.layout.selectPanel(null), pickDirectory: () => ctx.uiWorkspace.pickDirectory() })
       ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'media-library', locale: namespace, inject }, Library))
       ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({ name: 'plugins.bundle.config', key: 'dsh-media-library', locale: namespace, inject: () => ({ t, open: () => open(null) }) }, Configuration))
       ctx.effect(() => ctx.contextMenus.register({
@@ -353,6 +390,6 @@ window.__ModuleLoader__.load({
       })
     }
 
-    return { name: 'dsh-media-library', inject: ['slots', 'locale', 'layout', 'contextMenus', 'workspaces', 'sidebarRight', 'sidebarRightTabs'], apply }
+    return { name: 'dsh-media-library', inject: ['slots', 'locale', 'layout', 'contextMenus', 'workspaces', 'uiWorkspace', 'sidebarRight', 'sidebarRightTabs'], apply }
   },
 })

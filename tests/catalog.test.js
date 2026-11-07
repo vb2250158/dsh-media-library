@@ -5,6 +5,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Catalog } from '../src/catalog.js'
 
+test('catalog accepts a large legacy record set and preserves it when its record limit is exceeded', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-catalog-limit-'))
+  try {
+    const file = join(root, 'catalog.json'), catalog = new Catalog(file)
+    const old = JSON.stringify({ version: 1, items: Array.from({ length: 10_001 }, (_, i) => ({ source: 'old', path: `/video-${i}.mp4`, tags: ['旧标签'] })) })
+    await writeFile(file, old)
+    assert.equal((await catalog.list()).length, 10_001)
+    const tooMany = Array.from({ length: 100_001 }, (_, i) => ({ path: `/new-${i}.mp4`, tags: ['标签'] }))
+    await assert.rejects(catalog.importMissing('new', tooMany), error => error.code === 'MEDIA_CATALOG_LIMIT')
+    assert.equal(await readFile(file, 'utf8'), old)
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
 test('concurrent updates retain both media records and normalize tags', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-media-test-'))
   try {

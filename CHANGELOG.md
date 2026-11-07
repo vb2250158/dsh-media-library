@@ -5,6 +5,8 @@
 - Show a recursive video grid next to sessions in designated workspaces, with category filters and multiple tags per video.
 - Let users create tag categories and let Agents append labels without replacing existing tags.
 - Sort videos by modification time, name, or file size.
+- Choose media folders inside or outside the workspace and keep the library settings and tags in the workspace.
+- Display video-frame covers and manage folders and tag categories in settings.
 
 ## 0.1.0
 
