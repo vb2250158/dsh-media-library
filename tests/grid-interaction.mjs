@@ -15,7 +15,7 @@ Object.assign(globalThis, { window: dom.window, document: dom.window.document, H
 const React = require('react'), { act } = React, { createRoot } = require('react-dom/client'), h = React.createElement
 const components = { Button: ({ variant, children, ...props }) => h('button', props, children), Input: props => h('input', props) }
 let descriptor, menu, dictionary, panel, opened = 0
-const entries = new Map(), tags = new Map(), listeners = new Set()
+const entries = new Map(), tags = new Map(), listeners = new Set(), added = []
 const categories = [{ id: 'cat', name: '类型', tags: ['动画', '冒险'] }]
 const workspaces = { list: { snapshot: null, getSnapshot() { return this.snapshot }, subscribe(listener) { assert.equal(this.snapshot, snapshot); listeners.add(listener); return () => listeners.delete(listener) } } }
 const snapshot = { items: [{ workspaceId: 'a', sessionIds: ['session-a', 'session-b'] }] }
@@ -26,6 +26,7 @@ const fetch = async (path, init = {}) => {
   const url = new URL(path, 'http://localhost'), body = init.body ? JSON.parse(init.body) : null
   if (url.pathname.endsWith('/state')) return response({ projects: [{ workspaceId: 'a', title: '测试媒体库' }] })
   if (url.pathname.endsWith('/folders')) return response({ folders: [{ id: 'folder-1', path: '/media', name: 'media' }] })
+  if (url.pathname.endsWith('/folders/add')) { added.push(body.path); return response({ folders: [{ id: 'folder-1', path: '/media', name: 'media' }] }) }
   if (url.pathname.endsWith('/index')) return response({ items: [] })
   if (url.pathname.endsWith('/index/replace')) return response({ ok: true })
   if (url.pathname.endsWith('/categories')) return response(categories)
@@ -35,7 +36,7 @@ const fetch = async (path, init = {}) => {
 }
 vm.runInNewContext(await readFile(new URL('../src/client.js', import.meta.url), 'utf8'), { window: { __ModuleLoader__: { load(value) { descriptor = value } } }, document, fetch, AbortController, AbortSignal, URLSearchParams, Intl, setTimeout, clearTimeout, console })
 const plugin = descriptor.factory(name => name === 'react' ? React : components)
-plugin.apply({ effect: callback => callback(), locale: { register(_ns, value) { dictionary = value.zh }, bind: () => key => dictionary[key] ?? key }, layout: { selectPanel: value => { panel = value }, panelInfo: { getSnapshot: () => ({ activePanelId: panel }) } }, sidebarRight: sidebar, sidebarRightTabs: { register: () => () => {} }, uiWorkspace: { pickDirectory: async () => '/media' }, workspaces, slots: { inject: (_name, callback) => callback(), register(spec, component) { entries.set(`${spec.name}:${spec.key ?? spec.id}`, { spec, component }); return () => {} } }, contextMenus: { register: value => { menu = value }, notify() {} } })
+plugin.apply({ effect: callback => callback(), locale: { register(_ns, value) { dictionary = value.zh }, bind: () => key => dictionary[key] ?? key }, layout: { selectPanel: value => { panel = value }, panelInfo: { getSnapshot: () => ({ activePanelId: panel }) } }, sidebarRight: sidebar, sidebarRightTabs: { register: () => () => {} }, uiWorkspace: { listDirectory: async path => ({ path: path || '/media', crumbs: [], entries: [] }) }, workspaces, slots: { inject: (_name, callback) => callback(), register(spec, component) { entries.set(`${spec.name}:${spec.key ?? spec.id}`, { spec, component }); return () => {} } }, contextMenus: { register: value => { menu = value }, notify() {} } })
 const slot = entries.get('sidebar.right.pane.tab:dsh-media-library')
 const auto = entries.get('conversation.session.header.actions:dsh-media-library')
 assert(slot && auto && menu)
@@ -47,6 +48,10 @@ assert(!document.querySelector('input[aria-label="分类名称"]'), 'category ed
 await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent === '设置').click())
 assert(document.querySelector('input[aria-label="分类名称"]'), 'category editor is in settings')
 assert(document.body.textContent.includes('/media'), 'selected media folder is visible in settings')
+await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent === '浏览').click())
+assert.equal(document.querySelector('input[aria-label="文件夹路径"]').value, '/media')
+await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent === '添加文件夹').click())
+assert.deepEqual(added, ['/media'])
 await act(async () => [...document.querySelectorAll('button')].find(button => button.textContent === '完成').click())
 assert(document.querySelector('.dsh-media-card').textContent.includes('z.mp4'), 'recent video appears first')
 const sort = document.querySelector('select[aria-label="排序"]')

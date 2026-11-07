@@ -12,7 +12,7 @@ window.__ModuleLoader__.load({
       tags: '标签', tagHelp: '用逗号分隔标签', saveTags: '保存标签', saving: '正在保存…', saved: '标签已保存', close: '关闭预览', previewFailed: '浏览器无法播放或显示此媒体，可换用支持的媒体格式',
       requestFailed: '读取未完成，请重试', changed: '目录已变化，请刷新后继续', unavailable: '此项目已移出媒体库，请返回项目列表', invalidTags: '最多填写 100 个标签，每个标签不超过 100 个字符', indexLimit: '视频索引超过容量上限，原索引已保留',
       fileGone: '媒体文件已不存在，请刷新目录', denied: '无法访问该目录或文件', failedSave: '标签保存未确认，请刷新后核对', browse: '浏览', bytes: '字节', removed: '媒体库登记已取消，原文件和标签保留',
-      allVideos: '全部视频', uncategorized: '未分类', all: '全部', category: '标签分类', newCategory: '新增分类', newTag: '新增标签', categoryName: '分类名称', tagName: '标签名称', add: '添加', scanning: '正在扫描视频…', noVideos: '没有找到视频', noCover: '暂无封面', duplicate: '分类或标签名称已存在', sort: '排序', sortUpdated: '更新时间（新到旧）', sortName: '名称（A 到 Z）', sortSize: '文件大小（大到小）', settings: '设置', done: '完成', folders: '媒体文件夹', addFolder: '添加文件夹', removeFolder: '移除', noFolders: '请在设置中添加媒体文件夹',
+      allVideos: '全部视频', uncategorized: '未分类', all: '全部', category: '标签分类', newCategory: '新增分类', newTag: '新增标签', categoryName: '分类名称', tagName: '标签名称', add: '添加', scanning: '正在扫描视频…', noVideos: '没有找到视频', noCover: '暂无封面', duplicate: '分类或标签名称已存在', sort: '排序', sortUpdated: '更新时间（新到旧）', sortName: '名称（A 到 Z）', sortSize: '文件大小（大到小）', settings: '设置', done: '完成', folders: '媒体文件夹', addFolder: '添加文件夹', removeFolder: '移除', folderPath: '文件夹路径', folderHelp: '移除文件夹不会删除原视频和标签', noFolders: '请在设置中添加媒体文件夹',
     }
     const en = {
       title: 'Media library', set: 'Use as media library', open: 'Open media library', remove: 'Remove media library designation', menuFailed: 'The media library action did not complete. Retry.',
@@ -21,7 +21,7 @@ window.__ModuleLoader__.load({
       tags: 'Tags', tagHelp: 'Separate tags with commas', saveTags: 'Save tags', saving: 'Saving…', saved: 'Tags saved', close: 'Close preview', previewFailed: 'This browser cannot play or display this media. Use a supported format.',
       requestFailed: 'Could not read this item. Retry.', changed: 'The directory changed. Refresh before continuing.', unavailable: 'This project is no longer a media library. Return to the project list.', invalidTags: 'Use up to 100 tags, each no longer than 100 characters.', indexLimit: 'The video index exceeds its capacity. The previous index was retained.',
       fileGone: 'This media file no longer exists. Refresh the directory.', denied: 'This directory or file cannot be accessed.', failedSave: 'The tag save is unconfirmed. Refresh to check.', browse: 'Browse', bytes: 'bytes', removed: 'The designation was removed. Files and tags are retained.',
-      allVideos: 'All videos', uncategorized: 'Uncategorized', all: 'All', category: 'Tag categories', newCategory: 'New category', newTag: 'New tag', categoryName: 'Category name', tagName: 'Tag name', add: 'Add', scanning: 'Scanning videos…', noVideos: 'No videos found', noCover: 'No cover', duplicate: 'The category or tag name already exists.', sort: 'Sort', sortUpdated: 'Recently updated', sortName: 'Name (A to Z)', sortSize: 'Size (largest first)', settings: 'Settings', done: 'Done', folders: 'Media folders', addFolder: 'Add folder', removeFolder: 'Remove', noFolders: 'Add a media folder in Settings.',
+      allVideos: 'All videos', uncategorized: 'Uncategorized', all: 'All', category: 'Tag categories', newCategory: 'New category', newTag: 'New tag', categoryName: 'Category name', tagName: 'Tag name', add: 'Add', scanning: 'Scanning videos…', noVideos: 'No videos found', noCover: 'No cover', duplicate: 'The category or tag name already exists.', sort: 'Sort', sortUpdated: 'Recently updated', sortName: 'Name (A to Z)', sortSize: 'Size (largest first)', settings: 'Settings', done: 'Done', folders: 'Media folders', addFolder: 'Add folder', removeFolder: 'Remove', folderPath: 'Folder path', folderHelp: 'Removing a folder retains its videos and tags.', noFolders: 'Add a media folder in Settings.',
     }
 
     /** Read one owner-authenticated endpoint; caller owns request cancellation. */
@@ -197,10 +197,11 @@ window.__ModuleLoader__.load({
     }
 
     /** Incrementally traverse the selected media folders. */
-    function VideoGrid({ project, t, pickDirectory }) {
+    function VideoGrid({ project, t, listDirectory }) {
       const [videos, setVideos] = React.useState([]), [categories, setCategories] = React.useState([]), [folders, setFolders] = React.useState([]), [settings, setSettings] = React.useState(false)
       const [filter, setFilter] = React.useState(''), [selected, setSelected] = React.useState(null)
       const [sort, setSort] = React.useState('updated')
+      const [folderPath, setFolderPath] = React.useState(''), [listing, setListing] = React.useState(null)
       const [categoryName, setCategoryName] = React.useState(''), [tagName, setTagName] = React.useState(''), [categoryId, setCategoryId] = React.useState('')
       const [loading, setLoading] = React.useState(true), [error, setError] = React.useState(''), [revision, setRevision] = React.useState(0), [visible, setVisible] = React.useState(60)
       React.useEffect(() => {
@@ -250,7 +251,8 @@ window.__ModuleLoader__.load({
       const refreshCategories = async () => setCategories(await request(`categories?${new URLSearchParams({ workspaceId: project.workspaceId })}`))
       const createCategory = async () => { try { await request('categories/create', { body: { workspaceId: project.workspaceId, name: categoryName } }); setCategoryName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
       const createTag = async () => { try { await request('categories/tags/add', { body: { workspaceId: project.workspaceId, categoryId, name: tagName } }); setTagName(''); await refreshCategories() } catch (failure) { setError(errorKey(failure)) } }
-      const addFolder = async () => { try { const path = await pickDirectory(); if (path) { const result = await request('folders/add', { body: { workspaceId: project.workspaceId, path } }); setFolders(result.folders); setRevision(value => value + 1) } } catch (failure) { setError(errorKey(failure)) } }
+      const browseFolder = async path => { try { const result = await listDirectory(path || undefined); setListing(result); setFolderPath(result.path); setError('') } catch (failure) { setError(errorKey(failure)) } }
+      const addFolder = async () => { try { const result = await request('folders/add', { body: { workspaceId: project.workspaceId, path: folderPath } }); setFolders(result.folders); setFolderPath(''); setListing(null); setRevision(value => value + 1) } catch (failure) { setError(errorKey(failure)) } }
       const removeFolder = async sourceId => { try { const result = await request('folders/remove', { body: { workspaceId: project.workspaceId, sourceId } }); setFolders(result.folders); setRevision(value => value + 1) } catch (failure) { setError(errorKey(failure)) } }
       const matching = videos.filter(video => !filter || (filter === '__untagged__' ? !video.tags?.length : video.tags?.includes(filter.slice(4)))).sort((a, b) => {
         const name = a.name.localeCompare(b.name, undefined, { numeric: true }) || a.path.localeCompare(b.path)
@@ -260,7 +262,7 @@ window.__ModuleLoader__.load({
       })
       return h('div', { className: 'dsh-media-grid-view' },
         h('div', { className: 'dsh-media-heading' }, h('h2', null, project.title), h('div', { className: 'dsh-media-actions' }, h(Button, { variant: 'outline', onClick: () => setRevision(value => value + 1) }, t('refresh')), h(Button, { variant: 'outline', onClick: () => setSettings(value => !value) }, t(settings ? 'done' : 'settings')))),
-        settings ? h('section', { className: 'dsh-media-settings', 'aria-label': t('settings') }, h('h3', null, t('folders')), ...folders.map(folder => h('div', { key: folder.id, className: 'dsh-media-folder' }, h('span', null, folder.path), h(Button, { variant: 'ghost', onClick: () => void removeFolder(folder.id) }, t('removeFolder')))), h(Button, { variant: 'outline', onClick: () => void addFolder() }, t('addFolder')), h('h3', null, t('category')),
+        settings ? h('section', { className: 'dsh-media-settings', 'aria-label': t('settings') }, h('h3', null, t('folders')), h('p', null, t('folderHelp')), ...folders.map(folder => h('div', { key: folder.id, className: 'dsh-media-folder' }, h('span', null, folder.path), h(Button, { variant: 'ghost', onClick: () => void removeFolder(folder.id) }, t('removeFolder')))), h('div', { className: 'dsh-media-actions' }, h(Input, { value: folderPath, 'aria-label': t('folderPath'), placeholder: t('folderPath'), onChange: event => setFolderPath(event.target.value) }), h(Button, { variant: 'outline', onClick: () => void browseFolder(folderPath) }, t('browse')), h(Button, { variant: 'outline', disabled: !folderPath.trim(), onClick: () => void addFolder() }, t('addFolder'))), listing ? h('div', { className: 'dsh-media-folder-browser' }, h('div', { className: 'dsh-media-actions' }, ...listing.crumbs.map(crumb => h(Button, { key: crumb.path, variant: 'ghost', onClick: () => void browseFolder(crumb.path) }, crumb.name))), ...listing.entries.filter(entry => !entry.hidden).map(entry => h(Button, { key: entry.path, variant: 'ghost', onClick: () => void browseFolder(entry.path) }, entry.name))) : null, h('h3', null, t('category')),
           h('div', { className: 'dsh-media-actions' }, h(Input, { value: categoryName, placeholder: t('categoryName'), 'aria-label': t('categoryName'), onChange: event => setCategoryName(event.target.value) }), h(Button, { variant: 'outline', disabled: !categoryName.trim(), onClick: () => void createCategory() }, t('newCategory'))),
           h('div', { className: 'dsh-media-actions' }, h('select', { value: categoryId, 'aria-label': t('category'), onChange: event => setCategoryId(event.target.value) }, h('option', { value: '' }, t('category')), ...categories.map(category => h('option', { value: category.id, key: category.id }, category.name))), h(Input, { value: tagName, placeholder: t('tagName'), 'aria-label': t('tagName'), onChange: event => setTagName(event.target.value) }), h(Button, { variant: 'outline', disabled: !categoryId || !tagName.trim(), onClick: () => void createTag() }, t('newTag'))),
           ...categories.map(category => h('p', { key: category.id }, `${category.name}: ${category.tags.join(' · ')}`))) : null,
@@ -279,7 +281,7 @@ window.__ModuleLoader__.load({
     }
 
     /** The panel subscribes only to the chosen project and reloads Host membership. */
-    function Library({ t, selectedSubscribe, selectedSnapshot, selectProject, back, pickDirectory }) {
+    function Library({ t, selectedSubscribe, selectedSnapshot, selectProject, back, listDirectory }) {
       const workspaceId = React.useSyncExternalStore(selectedSubscribe, selectedSnapshot, selectedSnapshot)
       const [projects, setProjects] = React.useState(null), [error, setError] = React.useState(''), [revision, setRevision] = React.useState(0)
       React.useEffect(() => {
@@ -298,7 +300,7 @@ window.__ModuleLoader__.load({
           h(Button, { key: row.workspaceId, variant: row.workspaceId === workspaceId ? 'primary' : 'outline', 'aria-pressed': row.workspaceId === workspaceId, onClick: () => selectProject(row.workspaceId) }, row.title))) : null,
         projects?.length === 0 ? h('p', null, t('emptyProjects')) : null,
         workspaceId !== null && projects !== null && !project && !error ? h('p', { role: 'status' }, t('unavailable')) : null,
-        project ? h(VideoGrid, { key: project.workspaceId, project, t, pickDirectory }) : null)
+        project ? h(VideoGrid, { key: project.workspaceId, project, t, listDirectory }) : null)
     }
 
     function Configuration({ t, open }) {
@@ -327,7 +329,7 @@ window.__ModuleLoader__.load({
       return null
     }
 
-    function SessionLibrary({ sessionId, workspaces, t, pickDirectory }) {
+    function SessionLibrary({ sessionId, workspaces, t, listDirectory }) {
       const snapshot = React.useSyncExternalStore(listener => workspaces.list.subscribe(listener), () => workspaces.list.getSnapshot(), () => workspaces.list.getSnapshot())
       const workspaceId = snapshot.items.find(item => item.sessionIds.includes(sessionId))?.workspaceId
       const [projects, setProjects] = React.useState([])
@@ -338,7 +340,7 @@ window.__ModuleLoader__.load({
         return () => controller.abort()
       }, [workspaceId])
       const project = projects.find(item => item.workspaceId === workspaceId)
-      return h('div', { className: 'dsh-media-library' }, error ? h('p', { role: 'alert' }, t(error)) : project ? h(VideoGrid, { key: project.workspaceId, project, t, pickDirectory }) : h('p', null, t('unavailable')))
+      return h('div', { className: 'dsh-media-library' }, error ? h('p', { role: 'alert' }, t(error)) : project ? h(VideoGrid, { key: project.workspaceId, project, t, listDirectory }) : h('p', null, t('unavailable')))
     }
 
     const styles = `.dsh-media-library{height:100%;overflow:auto;box-sizing:border-box;padding:24px;display:flex;flex-direction:column;gap:24px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base);min-width:0}.dsh-media-library h1,.dsh-media-library h2{font-weight:500;margin:0;overflow-wrap:anywhere}.dsh-media-library h1{font-size:20px}.dsh-media-library h2{font-size:16px}.dsh-media-library p{margin:0;line-height:1.6}.dsh-media-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.dsh-media-projects,.dsh-media-actions,.dsh-media-breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}.dsh-media-projects button,.dsh-media-breadcrumb button{max-width:100%;overflow-wrap:anywhere;white-space:normal}.dsh-media-browser{display:flex;flex-direction:column;gap:16px;min-width:0}.dsh-media-files{list-style:none;display:flex;flex-direction:column;margin:0;padding:0}.dsh-media-files li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 16px;padding:8px 0;border-bottom:0.5px solid var(--dsw-alias-border-l1)}.dsh-media-files li>button{min-width:0;justify-content:flex-start;height:auto;min-height:36px}.dsh-media-file-name{overflow-wrap:anywhere;white-space:normal;text-align:start}.dsh-media-file-meta,.dsh-media-file-tags{font-size:13px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}.dsh-media-file-tags{grid-column:1/-1;padding-inline:12px}.dsh-media-preview{display:flex;flex-direction:column;gap:16px;padding:16px;border:0.5px solid var(--dsw-alias-border-l1);border-radius:12px;min-width:0}.dsh-media-preview video,.dsh-media-preview audio,.dsh-media-preview img{display:block;max-width:100%;width:100%;max-height:55vh;object-fit:contain}.dsh-media-preview audio{height:54px}.dsh-media-tags{display:flex;flex-direction:column;gap:8px;min-width:0}.dsh-media-tags>span{min-width:0}.dsh-media-error{color:var(--dsw-alias-state-error-primary);display:flex;flex-direction:column;align-items:flex-start;gap:8px}.dsh-media-config{display:flex;flex-direction:column;gap:16px;align-items:flex-start}.dsh-media-config p{margin:0;line-height:1.6}@media(max-width:600px){.dsh-media-library{padding:16px;gap:20px}.dsh-media-files li{grid-template-columns:minmax(0,1fr)}.dsh-media-file-meta{padding-inline:12px}.dsh-media-preview{padding:12px}.dsh-media-heading{align-items:flex-start}.dsh-media-preview .dsh-media-heading{flex-direction:column}}`
@@ -359,9 +361,9 @@ window.__ModuleLoader__.load({
         } else ctx.layout.selectPanel('media-library')
       }
       ctx.effect(() => ctx.sidebarRightTabs.register({ id: 'dsh-media-library', kind: 'media-library', title: () => t('title') }))
-      ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-media-library', locale: namespace, inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, t, pickDirectory: () => ctx.uiWorkspace.pickDirectory() }) }, SessionLibrary))
+      ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-media-library', locale: namespace, inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, t, listDirectory: path => ctx.uiWorkspace.listDirectory(path) }) }, SessionLibrary))
       ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'dsh-media-library', inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, sidebar: ctx.sidebarRight, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot }) }, SessionMedia))
-      const inject = () => ({ t, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot, selectProject: selection.select, back: () => ctx.layout.selectPanel(null), pickDirectory: () => ctx.uiWorkspace.pickDirectory() })
+      const inject = () => ({ t, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot, selectProject: selection.select, back: () => ctx.layout.selectPanel(null), listDirectory: path => ctx.uiWorkspace.listDirectory(path) })
       ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'media-library', locale: namespace, inject }, Library))
       ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({ name: 'plugins.bundle.config', key: 'dsh-media-library', locale: namespace, inject: () => ({ t, open: () => open(null) }) }, Configuration))
       ctx.effect(() => ctx.contextMenus.register({
