@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { Catalog } from './catalog.js'
 import { LocalMedia } from './local-media.js'
 import { ProjectStore, workspaceIdentity } from './project-store.js'
+import { TagTaxonomy } from './tag-taxonomy.js'
 
 /** A request failure safe for a localized Client error message. */
 export function mediaFailure(code) { return Object.assign(new Error(code), { code }) }
@@ -13,12 +14,14 @@ export class MediaLibrary {
   #registry
   #projects
   #catalog
+  #taxonomy
   #pending = Promise.resolve()
   #closed = false
   constructor({ workspaceRegistry, stateDir }) {
     this.#registry = workspaceRegistry
     this.#projects = new ProjectStore(join(stateDir, 'projects.json'))
     this.#catalog = new Catalog(join(stateDir, 'catalog.json'))
+    this.#taxonomy = new TagTaxonomy(join(stateDir, 'tag-taxonomy.json'))
   }
 
   /** Return only registered libraries, resolving titles/paths from Workspace each time. */
@@ -84,6 +87,24 @@ export class MediaLibrary {
     })
   }
 
+  /** Append labels without replacing existing user or Agent labels. */
+  addTags(workspaceId, path, tags) {
+    return this.#write(async () => {
+      const reader = await this.#reader(workspaceId, true)
+      const media = await reader.open(path)
+      await media.handle.close()
+      return this.#catalog.addTags(workspaceId, '/' + path, tags)
+    })
+  }
+
+  async tagCategories() {
+    if (this.#closed) throw mediaFailure('MEDIA_UNLOADING')
+    return this.#taxonomy.list()
+  }
+
+  createTagCategory(name) { return this.#write(() => this.#taxonomy.createCategory(name)) }
+  addCategoryTag(categoryId, name) { return this.#write(() => this.#taxonomy.addTag(categoryId, name)) }
+
   /** Stop admission and let already accepted writes reach their durable end. */
-  async dispose() { this.#closed = true; await this.#pending; await this.#projects.drain() }
+  async dispose() { this.#closed = true; await this.#pending; await this.#projects.drain(); await this.#taxonomy.drain() }
 }

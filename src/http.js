@@ -2,7 +2,7 @@
 import { pipeline } from 'node:stream/promises'
 
 const BASE = '/media-library/'
-const allowedErrors = new Set(['MEDIA_INVALID_REQUEST', 'MEDIA_INVALID_PATH', 'MEDIA_INVALID_PAGE', 'MEDIA_INVALID_ROOT', 'MEDIA_OUTSIDE_ROOT', 'MEDIA_LINK_REFUSED', 'MEDIA_UNSUPPORTED_TYPE', 'MEDIA_NOT_FILE', 'MEDIA_NOT_DIRECTORY', 'MEDIA_FILE_CHANGED', 'MEDIA_NOT_FOUND', 'MEDIA_NOT_READABLE', 'MEDIA_READ_FAILED', 'MEDIA_INVALID_TAGS', 'MEDIA_WORKSPACE_MISSING', 'MEDIA_NOT_ENABLED', 'MEDIA_DIRECTORY_MISSING', 'MEDIA_DIRECTORY_CHANGED', 'MEDIA_DIRECTORY_LIMIT', 'MEDIA_UNLOADING'])
+const allowedErrors = new Set(['MEDIA_INVALID_REQUEST', 'MEDIA_INVALID_PATH', 'MEDIA_INVALID_PAGE', 'MEDIA_INVALID_ROOT', 'MEDIA_OUTSIDE_ROOT', 'MEDIA_LINK_REFUSED', 'MEDIA_UNSUPPORTED_TYPE', 'MEDIA_NOT_FILE', 'MEDIA_NOT_DIRECTORY', 'MEDIA_FILE_CHANGED', 'MEDIA_NOT_FOUND', 'MEDIA_NOT_READABLE', 'MEDIA_READ_FAILED', 'MEDIA_INVALID_TAGS', 'MEDIA_CATEGORY_EXISTS', 'MEDIA_CATEGORY_MISSING', 'MEDIA_TAG_EXISTS', 'MEDIA_WORKSPACE_MISSING', 'MEDIA_NOT_ENABLED', 'MEDIA_DIRECTORY_MISSING', 'MEDIA_DIRECTORY_CHANGED', 'MEDIA_DIRECTORY_LIMIT', 'MEDIA_UNLOADING'])
 
 /** Parse a single byte range. Invalid or unsatisfiable ranges return null. */
 export function byteRange(value, size) {
@@ -49,7 +49,7 @@ export function createHandler({ connection, library, signal, logger }) {
     if (admission.peer.principal.kind !== 'owner') { response.writeHead(403); response.end(); return }
     const url = new URL(request.url, 'http://localhost')
     const action = url.pathname.slice(BASE.length)
-    const write = action === 'projects/set' || action === 'tags'
+    const write = ['projects/set', 'tags', 'tags/add', 'categories/create', 'categories/tags/add'].includes(action)
     if (write && request.method !== 'POST' || !write && !['GET', 'HEAD'].includes(request.method)) { response.writeHead(405); response.end(); return }
     // Same-origin browsers send Origin on JSON POSTs. Refuse missing/foreign origins for writes.
     if (write) {
@@ -73,9 +73,13 @@ export function createHandler({ connection, library, signal, logger }) {
       }
       let data
       if (action === 'state') data = await library.state()
+      else if (action === 'categories') data = await library.tagCategories()
       else if (action === 'directory') data = await library.directory(url.searchParams.get('workspaceId'), url.searchParams.get('path') ?? '', { offset: Number(url.searchParams.get('offset') ?? 0), limit: Number(url.searchParams.get('limit') ?? 100), version: url.searchParams.get('version') ?? undefined })
       else if (action === 'projects/set') { const body = await bodyOf(request); keys(body, ['workspaceId', 'enabled']); data = await library.setProject(body.workspaceId, body.enabled) }
       else if (action === 'tags') { const body = await bodyOf(request); keys(body, ['workspaceId', 'path', 'tags']); data = await library.setTags(body.workspaceId, body.path, body.tags) }
+      else if (action === 'tags/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'path', 'tags']); data = await library.addTags(body.workspaceId, body.path, body.tags) }
+      else if (action === 'categories/create') { const body = await bodyOf(request); keys(body, ['name']); data = await library.createTagCategory(body.name) }
+      else if (action === 'categories/tags/add') { const body = await bodyOf(request); keys(body, ['categoryId', 'name']); data = await library.addCategoryTag(body.categoryId, body.name) }
       else { response.writeHead(404); response.end(); return }
       json(response, 200, { ok: true, data })
     } catch (error) {

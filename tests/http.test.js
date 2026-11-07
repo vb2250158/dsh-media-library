@@ -44,8 +44,13 @@ test('real HTTP enforces owner/origin, membership, Range/HEAD and saved-tag read
     assert.equal((await request('file?workspaceId=test-project&path=demo.mp4', { headers: { Range: 'bytes=20-' } })).status, 416)
     assert.equal((await request('file?workspaceId=test-project&path=../secret.mp4')).status, 400)
     assert((await (await jsonPost('tags', { workspaceId: 'test-project', path: 'demo.mp4', tags: ['已看'] })).json()).ok)
+    const category = (await (await jsonPost('categories/create', { name: '类型' })).json()).data
+    assert((await (await jsonPost('categories/tags/add', { categoryId: category.id, name: '喜剧' })).json()).ok)
+    assert.deepEqual((await (await request('categories')).json()).data[0].tags, ['喜剧'])
+    assert.equal((await request('categories/create', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"name":"无来源"}' })).status, 403)
+    assert((await (await jsonPost('tags/add', { workspaceId: 'test-project', path: 'demo.mp4', tags: ['喜剧'] })).json()).ok)
     const listing = await (await request('directory?workspaceId=test-project')).json()
-    assert.deepEqual(listing.data.items[0].tags, ['已看'])
+    assert.deepEqual(listing.data.items[0].tags, ['已看', '喜剧'])
     await jsonPost('projects/set', { workspaceId: 'test-project', enabled: false })
     assert.equal((await request('file?workspaceId=test-project&path=demo.mp4')).status, 400)
   } finally { lifetime.abort(); await library.dispose(); server.closeAllConnections(); if (server.listening) await new Promise(resolve => server.close(resolve)); await rm(root, { recursive: true, force: true }) }

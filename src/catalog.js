@@ -22,17 +22,28 @@ export class Catalog {
 
   /** Save tags to an explicitly identified source and path. */
   setTags(source, path, tags) {
+    return this.#updateTags(source, path, tags, false)
+  }
+
+  /** Add tags without discarding labels already applied to the media. */
+  addTags(source, path, tags) {
+    return this.#updateTags(source, path, tags, true)
+  }
+
+  #updateTags(source, path, tags, append) {
     if (typeof source !== 'string' || !source.trim() || typeof path !== 'string' || !path.startsWith('/')) throw new TypeError('A source and absolute media path are required')
     if (!validTags(tags)) throw Object.assign(new TypeError('Invalid tags'), { code: 'MEDIA_INVALID_TAGS' })
     const normalized = [...new Set(tags.map(tag => tag.trim()))]
     const operation = this.#pending.then(async () => {
       const items = await this.list()
       const existing = items.find(item => item.source === source && item.path === path)
-      if (existing) existing.tags = normalized
-      else items.push({ source, path, tags: normalized })
+      const next = append && existing ? [...new Set([...existing.tags, ...normalized])] : normalized
+      if (!validTags(next)) throw Object.assign(new TypeError('Invalid tags'), { code: 'MEDIA_INVALID_TAGS' })
+      if (existing) existing.tags = next
+      else items.push({ source, path, tags: next })
       if (items.length > 10_000) throw new Error('Media catalog exceeds its item limit')
       await writeDocument(this.#file, { version: 1, items })
-      return { source, path, tags: normalized }
+      return { source, path, tags: next }
     })
     // A failed write must not prevent the next operation from trying again.
     this.#pending = operation.catch(() => undefined)

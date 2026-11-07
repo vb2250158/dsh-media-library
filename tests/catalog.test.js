@@ -23,3 +23,13 @@ test('corrupt catalog is preserved and rejected', async () => {
     assert.equal(await readFile(file, 'utf8'), 'broken')
   } finally { await rm(root, { recursive: true, force: true }) }
 })
+
+test('concurrent additions to one video preserve all existing labels', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-media-test-'))
+  try {
+    const catalog = new Catalog(join(root, 'catalog.json'))
+    await catalog.setTags('drive', '/one.mp4', ['用户'])
+    await Promise.all([catalog.addTags('drive', '/one.mp4', ['AI', '用户']), catalog.addTags('drive', '/one.mp4', ['喜剧'])])
+    assert.deepEqual((await catalog.list())[0].tags, ['用户', 'AI', '喜剧'])
+  } finally { await rm(root, { recursive: true, force: true }) }
+})

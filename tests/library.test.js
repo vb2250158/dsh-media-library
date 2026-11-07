@@ -67,3 +67,18 @@ test('unload drains accepted writes and refuses further filesystem reads', () =>
   await assert.rejects(library.directory('project-one', ''), error => error.code === 'MEDIA_UNLOADING')
   await assert.rejects(library.setProject('project-one', true), error => error.code === 'MEDIA_UNLOADING')
 }))
+
+test('category creation and additive media labels preserve existing labels', () => fixture(async ({ library, options }) => {
+  await library.setProject('project-one', true)
+  const category = await library.createTagCategory('类型')
+  await library.addCategoryTag(category.id, '剧情')
+  await library.addCategoryTag(category.id, '喜剧')
+  await library.setTags('project-one', 'clip.mp4', ['自定义'])
+  await Promise.all([library.addTags('project-one', 'clip.mp4', ['剧情']), library.addTags('project-one', 'clip.mp4', ['喜剧'])])
+  const restored = new MediaLibrary(options)
+  assert.deepEqual((await restored.tagCategories())[0].tags, ['剧情', '喜剧'])
+  assert.deepEqual((await restored.directory('project-one', '')).items[0].tags, ['自定义', '剧情', '喜剧'])
+  await assert.rejects(restored.addTags('project-one', '../clip.mp4', ['恶意']))
+  await restored.dispose()
+  await library.dispose()
+}))
