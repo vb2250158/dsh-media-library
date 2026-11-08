@@ -162,6 +162,15 @@ export class MediaLibrary {
     })
   }
 
+  /** Apply explicit user changes while retaining concurrently added labels. */
+  editTags(workspaceId, sourceId, path, add, remove) {
+    return this.#write(async () => {
+      const { workspace, reader } = await this.#reader(workspaceId, sourceId, true)
+      const media = await reader.open(path); await media.handle.close()
+      return workspace.catalog.editTags(sourceId, '/' + path, add, remove)
+    })
+  }
+
   async tagCategories(workspaceId) { return (await this.#workspace(workspaceId)).taxonomy.list() }
   createTagCategory(workspaceId, name) { return this.#write(async () => (await this.#workspace(workspaceId, true)).taxonomy.createCategory(name)) }
   addCategoryTag(workspaceId, categoryId, name) { return this.#write(async () => (await this.#workspace(workspaceId, true)).taxonomy.addTag(categoryId, name)) }

@@ -46,3 +46,15 @@ test('concurrent additions to one video preserve all existing labels', async () 
     assert.deepEqual((await catalog.list())[0].tags, ['用户', 'AI', '喜剧'])
   } finally { await rm(root, { recursive: true, force: true }) }
 })
+
+test('user edits do not discard labels added by an Agent while the editor was open', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-media-edit-'))
+  try {
+    const catalog = new Catalog(join(root, 'catalog.json'))
+    await catalog.setTags('drive', '/one.mp4', ['用户', '旧标签'])
+    await Promise.all([catalog.addTags('drive', '/one.mp4', ['AI']), catalog.editTags('drive', '/one.mp4', ['新标签'], ['旧标签'])])
+    assert.deepEqual((await catalog.list())[0].tags, ['用户', 'AI', '新标签'])
+    await assert.rejects(async () => catalog.editTags('drive', '/one.mp4', ['冲突'], [' 冲突 ']), error => error.code === 'MEDIA_INVALID_TAGS')
+    assert.deepEqual((await catalog.list())[0].tags, ['用户', 'AI', '新标签'])
+  } finally { await rm(root, { recursive: true, force: true }) }
+})

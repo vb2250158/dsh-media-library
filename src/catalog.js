@@ -43,6 +43,14 @@ export class Catalog {
     return this.#updateTags(source, path, tags, true)
   }
 
+  /** Apply a user's explicit additions and removals to the latest labels. */
+  editTags(source, path, add, remove) {
+    if (!validTags(remove)) throw Object.assign(new TypeError('Invalid tags'), { code: 'MEDIA_INVALID_TAGS' })
+    const removed = [...new Set(remove.map(tag => tag.trim()))]
+    if (!validTags(add) || add.some(tag => removed.includes(tag.trim()))) throw Object.assign(new TypeError('Invalid tags'), { code: 'MEDIA_INVALID_TAGS' })
+    return this.#updateTags(source, path, add, true, removed)
+  }
+
   /** Copy absent legacy records in one atomic write, never replacing local labels. */
   importMissing(source, records) {
     if (typeof source !== 'string' || !source.trim() || !Array.isArray(records) || records.some(item => !item || typeof item.path !== 'string' || !item.path.startsWith('/') || !validTags(item.tags))) throw new TypeError('Invalid media import')
@@ -60,14 +68,14 @@ export class Catalog {
     return operation
   }
 
-  #updateTags(source, path, tags, append) {
+  #updateTags(source, path, tags, append, remove = []) {
     if (typeof source !== 'string' || !source.trim() || typeof path !== 'string' || !path.startsWith('/')) throw new TypeError('A source and absolute media path are required')
     if (!validTags(tags)) throw Object.assign(new TypeError('Invalid tags'), { code: 'MEDIA_INVALID_TAGS' })
     const normalized = [...new Set(tags.map(tag => tag.trim()))]
     const operation = this.#pending.then(async () => {
       const items = await this.list()
       const existing = items.find(item => item.source === source && item.path === path)
-      const next = append && existing ? [...new Set([...existing.tags, ...normalized])] : normalized
+      const next = append && existing ? [...new Set([...existing.tags.filter(tag => !remove.includes(tag)), ...normalized])] : normalized
       if (!validTags(next)) throw Object.assign(new TypeError('Invalid tags'), { code: 'MEDIA_INVALID_TAGS' })
       if (existing) existing.tags = next
       else items.push({ source, path, tags: next })

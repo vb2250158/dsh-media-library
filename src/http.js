@@ -51,7 +51,7 @@ export function createHandler({ connection, library, signal, logger }) {
     if (admission.peer.principal.kind !== 'owner') { response.writeHead(403); response.end(); return }
     const url = new URL(request.url, 'http://localhost')
     const action = url.pathname.slice(BASE.length)
-    const write = ['projects/set', 'tags', 'tags/add', 'folders/add', 'folders/remove', 'index/replace', 'categories/create', 'categories/tags/add'].includes(action)
+    const write = ['projects/set', 'tags', 'tags/add', 'tags/edit', 'folders/add', 'folders/remove', 'index/replace', 'categories/create', 'categories/tags/add'].includes(action)
     if (write && request.method !== 'POST' || !write && !['GET', 'HEAD'].includes(request.method)) { response.writeHead(405); response.end(); return }
     // Same-origin browsers send Origin on JSON POSTs. Refuse missing/foreign origins for writes.
     if (write) {
@@ -82,6 +82,7 @@ export function createHandler({ connection, library, signal, logger }) {
       else if (action === 'projects/set') { const body = await bodyOf(request); keys(body, ['workspaceId', 'enabled']); data = await library.setProject(body.workspaceId, body.enabled) }
       else if (action === 'tags') { const body = await bodyOf(request); keys(body, ['workspaceId', 'sourceId', 'path', 'tags']); data = await library.setTags(body.workspaceId, body.sourceId, body.path, body.tags) }
       else if (action === 'tags/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'sourceId', 'path', 'tags']); data = await library.addTags(body.workspaceId, body.sourceId, body.path, body.tags) }
+      else if (action === 'tags/edit') { const body = await bodyOf(request, 64 * 1024); keys(body, ['workspaceId', 'sourceId', 'path', 'add', 'remove']); data = await library.editTags(body.workspaceId, body.sourceId, body.path, body.add, body.remove) }
       else if (action === 'folders/add') { const body = await bodyOf(request); keys(body, ['workspaceId', 'path']); data = await library.addFolder(body.workspaceId, body.path) }
       else if (action === 'folders/remove') { const body = await bodyOf(request); keys(body, ['workspaceId', 'sourceId']); data = await library.removeFolder(body.workspaceId, body.sourceId) }
       else if (action === 'index/replace') { const body = await bodyOf(request, 32 * 1024 * 1024, 'MEDIA_INDEX_LIMIT'); keys(body, ['workspaceId', 'sourceId', 'items']); data = await library.replaceIndex(body.workspaceId, body.sourceId, body.items) }

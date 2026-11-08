@@ -87,6 +87,13 @@ test('real HTTP enforces owner/origin, membership, Range/HEAD and saved-tag read
     assert.deepEqual((await (await request(`index?workspaceId=test-project&sourceId=${sourceId}`)).json()).data.items[0].tags, ['已看', '喜剧'])
     assert.equal((await jsonPost('index/replace', { ...indexBody, items: [{ ...indexBody.items[0], path: '../bad.mp4' }] })).status, 400)
     assert.equal((await (await request(`index?workspaceId=test-project&sourceId=${sourceId}`)).json()).data.items[0].path, 'demo.mp4')
+    const edit = { workspaceId: 'test-project', sourceId, path: 'demo.mp4', add: ['手工'], remove: ['已看'] }
+    assert.equal((await request('tags/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(edit) })).status, 403)
+    assert.equal((await request('tags/edit', { method: 'POST', headers: { Origin: 'http://example.test', 'content-type': 'application/json' }, body: JSON.stringify(edit) })).status, 403)
+    assert.equal((await jsonPost('tags/edit', { ...edit, add: ['已看'] })).status, 400)
+    assert.equal((await jsonPost('tags/edit', { ...edit, unexpected: true })).status, 400)
+    assert.deepEqual((await (await jsonPost('tags/edit', edit)).json()).data.tags, ['喜剧', '手工'])
+    assert.deepEqual((await (await request(`directory?workspaceId=test-project&sourceId=${sourceId}`)).json()).data.items[0].tags, ['喜剧', '手工'])
     await jsonPost('projects/set', { workspaceId: 'test-project', enabled: false })
     assert.equal((await request(`file?${fileQuery}`)).status, 400)
   } finally { lifetime.abort(); await library.dispose(); server.closeAllConnections(); if (server.listening) await new Promise(resolve => server.close(resolve)); await rm(root, { recursive: true, force: true }) }
