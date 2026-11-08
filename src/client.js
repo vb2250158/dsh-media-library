@@ -359,7 +359,7 @@ window.__ModuleLoader__.load({
       }
       ctx.effect(() => ctx.sidebarRightTabs.register({ id: 'dsh-media-library', kind: 'media-library', title: () => t('title') }))
       ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-media-library', locale: namespace, inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, t, listDirectory: path => ctx.uiWorkspace.listDirectory(path) }) }, SessionLibrary))
-      ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', key: 'dsh-media-library', inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, sidebar: ctx.sidebarRight, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot }) }, SessionMedia))
+      ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'dsh-media-library', inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, sidebar: ctx.sidebarRight, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot }) }, SessionMedia))
       const inject = () => ({ t, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot, selectProject: selection.select, back: () => ctx.layout.selectPanel(null), listDirectory: path => ctx.uiWorkspace.listDirectory(path) })
       ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'media-library', locale: namespace, inject }, Library))
       ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({ name: 'plugins.bundle.config', key: 'dsh-media-library', locale: namespace, inject: () => ({ t, open: () => open(null) }) }, Configuration))

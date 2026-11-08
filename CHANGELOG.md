@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Restore the required `id` for the session-header list slot; `key` is reserved for keyed slots. Retain project-menu navigation through the main panel.
+
 ## 0.1.2
 
 - Open Workspace media actions in the project panel even when a Session is mounted without a visible right Sidebar. Register the session-header contribution with the public slot key.
