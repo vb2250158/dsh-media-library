@@ -352,17 +352,14 @@ window.__ModuleLoader__.load({
       const t = ctx.locale.bind(namespace)
       ctx.effect(() => () => lifetime.abort())
       ctx.effect(() => { const style = document.createElement('style'); style.textContent = styles + `.dsh-media-grid-view{display:flex;flex-direction:column;gap:16px;min-width:0}.dsh-media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:20px 14px}.dsh-media-card{border:0;background:transparent;color:inherit;padding:0;text-align:left;min-width:0;cursor:pointer;display:flex;flex-direction:column;gap:6px}.dsh-media-card:focus-visible{outline:2px solid var(--dsw-alias-label-primary);outline-offset:4px}.dsh-media-cover{display:grid;place-items:center;width:100%;aspect-ratio:3/4;border-radius:8px;overflow:hidden;background:linear-gradient(145deg,#29405b,#131f32);font-size:30px;color:#d8e7fc}.dsh-media-cover video{width:100%;height:100%;object-fit:cover;pointer-events:none}.dsh-media-card-title{overflow-wrap:anywhere;font-size:14px}.dsh-media-card-tags{font-size:12px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}.dsh-media-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.dsh-media-filters>div{display:flex;gap:4px;align-items:center;flex-wrap:wrap}.dsh-media-settings{display:flex;flex-direction:column;align-items:flex-start;gap:12px}.dsh-media-settings h3{margin:4px 0}.dsh-media-folder{display:flex;align-items:flex-start;gap:8px;width:100%;min-width:0}.dsh-media-folder>span{flex:1;min-width:0;overflow-wrap:anywhere}.dsh-media-folder>button{flex:none;white-space:nowrap}.dsh-media-tag-group{display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0}.dsh-media-tag-group label{display:flex;gap:4px;align-items:center}`; document.head.appendChild(style); return () => style.remove() })
+      // A Workspace action opens its project view; a mounted Session does not prove its optional Sidebar is rendered.
       const open = workspaceId => {
         selection.select(workspaceId)
-        const current = ctx.sidebarRight.mounted.getSnapshot()
-        if (workspaceId && ctx.workspaces.list.getSnapshot().items.some(item => item.workspaceId === workspaceId && item.sessionIds.includes(current))) {
-          ctx.layout.selectPanel(null)
-          ctx.sidebarRight.openTab('media-library')
-        } else ctx.layout.selectPanel('media-library')
+        ctx.layout.selectPanel('media-library')
       }
       ctx.effect(() => ctx.sidebarRightTabs.register({ id: 'dsh-media-library', kind: 'media-library', title: () => t('title') }))
       ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: 'dsh-media-library', locale: namespace, inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, t, listDirectory: path => ctx.uiWorkspace.listDirectory(path) }) }, SessionLibrary))
-      ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', id: 'dsh-media-library', inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, sidebar: ctx.sidebarRight, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot }) }, SessionMedia))
+      ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({ name: 'conversation.session.header.actions', key: 'dsh-media-library', inject: sessionId => ({ sessionId, workspaces: ctx.workspaces, sidebar: ctx.sidebarRight, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot }) }, SessionMedia))
       const inject = () => ({ t, selectedSubscribe: selection.subscribe, selectedSnapshot: selection.getSnapshot, selectProject: selection.select, back: () => ctx.layout.selectPanel(null), listDirectory: path => ctx.uiWorkspace.listDirectory(path) })
       ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: 'media-library', locale: namespace, inject }, Library))
       ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({ name: 'plugins.bundle.config', key: 'dsh-media-library', locale: namespace, inject: () => ({ t, open: () => open(null) }) }, Configuration))

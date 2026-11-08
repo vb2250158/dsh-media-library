@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Open Workspace media actions in the project panel even when a Session is mounted without a visible right Sidebar. Register the session-header contribution with the public slot key.
+
 ## 0.1.1
 
 - License the original plugin code and configuration under MIT, include the license in package files, and retain the npm private marker. External dependencies keep their own licenses.

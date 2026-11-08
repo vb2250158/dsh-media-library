@@ -19,3 +19,5 @@ Run `npm test` for filesystem, persistence, auth, byte-range and failure regress
 ## License
 
 Original general-purpose plugin code and configuration in this repository are licensed under [MIT](LICENSE). Official DSH, Cua Driver and other external dependencies retain their own copyrights and licenses; this license does not relicense them. `private: true` prevents accidental npm publication and does not declare GitHub repository visibility. Runtime configuration, credentials, sessions and user media are outside this source package.
+
+The Workspace menu always opens the project media panel. Back to chat restores the current conversation. Automatic session media tabs require the optional right Sidebar to be rendered by the active host; the Workspace menu remains available when it is absent.
