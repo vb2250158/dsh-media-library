@@ -15,3 +15,7 @@ Install a fixed Git commit through DSH's synchronizer or official plugin CLI. Th
 Run `npm test` for filesystem, persistence, auth, byte-range and failure regressions; `npm run build` checks runtime JavaScript syntax. Run `npm run test:client -- <current DSH source>` for production React components with synthetic API/controls. This is fixture evidence, not actual-page QA. Release additionally requires an independent DSH Home/port and actual-page checks without copied production credentials or chats.
 
 [中文](README.md)
+
+## License
+
+Original general-purpose plugin code and configuration in this repository are licensed under [MIT](LICENSE). Official DSH, Cua Driver and other external dependencies retain their own copyrights and licenses; this license does not relicense them. `private: true` prevents accidental npm publication and does not declare GitHub repository visibility. Runtime configuration, credentials, sessions and user media are outside this source package.

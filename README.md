@@ -26,3 +26,7 @@
 `npm test` 验证真实临时文件、目录边界、持久化、认证、Range 与失败路径。`npm run build` 检查所有运行 JavaScript 的语法。`npm run test:client -- <当前 DSH 源码目录>` 使用该宿主的 React 执行生产组件和模拟 API/控件，不等同于实际页面验收。发布还需独立 DSH Home/端口和真实页面验收，不向测试环境复制正式凭据或会话。
 
 [English](README.en.md)
+
+## 许可
+
+本仓库原创的通用插件代码与配置以 [MIT](LICENSE) 许可提供。官方 DSH、Cua Driver 及其它外部依赖保留各自版权与许可证；此许可不覆盖它们。`private: true` 仅防止意外发布到 npm，不声明 GitHub 仓库可见性。运行配置、凭据、会话和用户媒体不属于本源码包。

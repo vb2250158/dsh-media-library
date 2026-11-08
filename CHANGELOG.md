@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- License the original plugin code and configuration under MIT, include the license in package files, and retain the npm private marker. External dependencies keep their own licenses.
+
 ## Unreleased
 
 - Show a recursive video grid next to sessions in designated workspaces, with category filters and multiple tags per video.
